@@ -1,0 +1,22 @@
+# Build outputs
+/app/build/
+/build/
+*.apk
+*.aab
+
+# Gradle
+/.gradle/
+local.properties
+
+# Generated sources
+app/src/main/java/com/ldsa/mycontacts/R.java
+
+# IDE
+.idea/
+*.iml
+
+# Keystore
+/.local-keystore/
+
+# Claude
+.claude/

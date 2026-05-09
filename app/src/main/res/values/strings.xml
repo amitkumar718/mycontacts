@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyContacts Archive</string>
+    <string name="title_device_contacts">Device Contacts</string>
+    <string name="title_contact_detail">Contact Detail</string>
+    <string name="search_hint">Search archived contacts…</string>
+    <string name="btn_archive">Archive Contacts</string>
+    <string name="btn_export">Export to Drive</string>
+    <string name="btn_call">Call</string>
+    <string name="btn_restore">Restore</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_back">Back</string>
+    <string name="empty_archived">No archived contacts</string>
+    <string name="empty_device">No contacts found</string>
+    <string name="confirm_archive">Archive selected contacts? They will be removed from your device contacts.</string>
+    <string name="confirm_restore">Restore this contact to device contacts?</string>
+    <string name="confirm_delete">Permanently delete this archived contact?</string>
+    <string name="yes">Yes</string>
+    <string name="cancel">Cancel</string>
+    <string name="no_account">No Google account found</string>
+    <string name="export_success">Exported successfully</string>
+    <string name="export_failed">Export failed</string>
+    <string name="permission_required">Contacts permission required</string>
+    <string name="phones">Phones</string>
+    <string name="emails">Emails</string>
+    <string name="org">Organization</string>
+    <string name="notes">Notes</string>
+    <string name="archived_on">Archived on</string>
+</resources>
