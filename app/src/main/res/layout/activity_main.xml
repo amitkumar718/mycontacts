@@ -40,6 +40,53 @@
 
         </LinearLayout>
 
+        <!-- Selection toolbar (shown instead of search bar in selection mode) -->
+        <LinearLayout
+            android:id="@+id/layoutSelectionBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="#1565C0"
+            android:paddingLeft="4dp"
+            android:paddingRight="8dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:gravity="center_vertical"
+            android:elevation="4dp"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnExitSelection"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="&#x2715;"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:background="@android:color/transparent" />
+
+            <TextView
+                android:id="@+id/tvSelectionCount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="0 selected"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:paddingLeft="8dp" />
+
+            <Button
+                android:id="@+id/btnSelectionActions"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:text="@string/actions"
+                android:textSize="12sp"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:background="@drawable/bg_toggle_inactive"
+                android:textColor="#1565C0" />
+
+        </LinearLayout>
+
         <!-- Count + view-mode toggle strip -->
         <LinearLayout
             android:layout_width="match_parent"

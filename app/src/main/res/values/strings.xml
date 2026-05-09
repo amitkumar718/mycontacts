@@ -42,4 +42,15 @@
     <string name="hide_labeled_contacts">Hide labeled</string>
     <string name="show_all_contacts">Show all</string>
     <string name="no_unlabeled_contacts">All contacts already have labels</string>
+    <string name="actions">Actions</string>
+    <string name="selected">selected</string>
+    <string name="add_to_label">Add to Label</string>
+    <string name="pick_label">Add to Label</string>
+    <string name="no_contacts_selected">No contacts selected</string>
+    <string name="confirm_bulk_restore">contact(s) will be restored to device contacts. Continue?</string>
+    <string name="confirm_bulk_delete">contact(s) will be permanently deleted. Continue?</string>
+    <string name="restoring">Restoring…</string>
+    <string name="contacts_restored">contact(s) restored</string>
+    <string name="contacts_deleted">contact(s) deleted</string>
+    <string name="contacts_labeled">contact(s) labeled</string>
 </resources>

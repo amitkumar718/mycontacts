@@ -12,9 +12,11 @@ import com.ldsa.mycontacts.db.ArchivedContact;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class ArchivedContactsAdapter extends BaseAdapter {
 
@@ -33,6 +35,9 @@ public class ArchivedContactsAdapter extends BaseAdapter {
     private int mMode;
     private List<Object> mItems; // String = section header, ArchivedContact = row
 
+    boolean mSelectionMode = false;
+    HashSet<Long> mSelected = new HashSet<Long>();
+
     public ArchivedContactsAdapter(Context ctx, List<ArchivedContact> contacts, int mode) {
         mCtx   = ctx;
         mMode  = mode;
@@ -49,6 +54,31 @@ public class ArchivedContactsAdapter extends BaseAdapter {
 
     public void setItems(List<ArchivedContact> contacts) {
         mItems = buildList(contacts);
+        notifyDataSetChanged();
+    }
+
+    public void setSelectionMode(boolean on) {
+        mSelectionMode = on;
+        if (!on) mSelected.clear();
+        notifyDataSetChanged();
+    }
+
+    public void toggleSelected(long id) {
+        if (mSelected.contains(id)) mSelected.remove(id);
+        else mSelected.add(id);
+        notifyDataSetChanged();
+    }
+
+    public Set<Long> getSelectedIds() {
+        return new HashSet<Long>(mSelected);
+    }
+
+    public int getSelectedCount() {
+        return mSelected.size();
+    }
+
+    public void clearSelection() {
+        mSelected.clear();
         notifyDataSetChanged();
     }
 
@@ -96,7 +126,15 @@ public class ArchivedContactsAdapter extends BaseAdapter {
 
         ArchivedContact c = (ArchivedContact) mItems.get(pos);
         vh.bind(c);
-        convertView.setBackgroundResource(R.drawable.ripple_list_item);
+
+        if (mSelectionMode && mSelected.contains(c.id)) {
+            convertView.setBackgroundColor(0xFFBBDEFB);   // light blue — selected
+        } else if (mSelectionMode) {
+            convertView.setBackgroundColor(0xFFFFFFFF);    // plain white — unselected
+        } else {
+            convertView.setBackgroundResource(R.drawable.ripple_list_item);
+        }
+
         return convertView;
     }
 
