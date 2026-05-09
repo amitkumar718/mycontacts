@@ -7,12 +7,13 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class ContactDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "archived_contacts.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     private static final String TABLE = "contacts";
     private static final String COL_ID = "_id";
@@ -22,6 +23,7 @@ public class ContactDatabase extends SQLiteOpenHelper {
     private static final String COL_ORG = "organization";
     private static final String COL_TITLE = "job_title";
     private static final String COL_NOTES = "notes";
+    private static final String COL_LABELS = "labels_json";
     private static final String COL_ARCHIVED_AT = "archived_at";
 
     private static ContactDatabase sInstance;
@@ -48,6 +50,7 @@ public class ContactDatabase extends SQLiteOpenHelper {
             COL_ORG + " TEXT," +
             COL_TITLE + " TEXT," +
             COL_NOTES + " TEXT," +
+            COL_LABELS + " TEXT," +
             COL_ARCHIVED_AT + " INTEGER NOT NULL" +
             ")"
         );
@@ -56,7 +59,9 @@ public class ContactDatabase extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // reserved for future migrations
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE " + TABLE + " ADD COLUMN " + COL_LABELS + " TEXT");
+        }
     }
 
     public long insert(ArchivedContact c) {
@@ -91,6 +96,31 @@ public class ContactDatabase extends SQLiteOpenHelper {
         return search(null);
     }
 
+    public List<ArchivedContact> getByLabel(String label) {
+        String like = "%\"" + label.replace("\"", "") + "\"%";
+        Cursor c = getReadableDatabase().query(TABLE, null,
+            COL_LABELS + " LIKE ?", new String[]{like},
+            null, null, COL_NAME + " COLLATE NOCASE ASC");
+        return cursorToList(c);
+    }
+
+    public LinkedHashMap<String, Integer> getAllLabelCounts() {
+        LinkedHashMap<String, Integer> counts = new LinkedHashMap<String, Integer>();
+        for (ArchivedContact c : getAll()) {
+            for (String label : c.getLabels()) {
+                Integer cnt = counts.get(label);
+                counts.put(label, cnt == null ? 1 : cnt + 1);
+            }
+        }
+        return counts;
+    }
+
+    public void updateLabels(long id, String labelsJson) {
+        ContentValues cv = new ContentValues();
+        cv.put(COL_LABELS, labelsJson);
+        getWritableDatabase().update(TABLE, cv, COL_ID + "=?", new String[]{String.valueOf(id)});
+    }
+
     private List<ArchivedContact> cursorToList(Cursor c) {
         List<ArchivedContact> list = new ArrayList<ArchivedContact>();
         try {
@@ -110,6 +140,7 @@ public class ContactDatabase extends SQLiteOpenHelper {
         a.organization = c.getString(c.getColumnIndexOrThrow(COL_ORG));
         a.jobTitle     = c.getString(c.getColumnIndexOrThrow(COL_TITLE));
         a.notes        = c.getString(c.getColumnIndexOrThrow(COL_NOTES));
+        a.labelsJson   = c.getString(c.getColumnIndexOrThrow(COL_LABELS));
         a.archivedAt   = c.getLong(c.getColumnIndexOrThrow(COL_ARCHIVED_AT));
         return a;
     }
@@ -122,6 +153,7 @@ public class ContactDatabase extends SQLiteOpenHelper {
         cv.put(COL_ORG,         c.organization);
         cv.put(COL_TITLE,       c.jobTitle);
         cv.put(COL_NOTES,       c.notes);
+        cv.put(COL_LABELS,      c.labelsJson);
         cv.put(COL_ARCHIVED_AT, c.archivedAt);
         return cv;
     }

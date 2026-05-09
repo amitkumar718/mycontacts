@@ -15,6 +15,7 @@ public class ArchivedContact {
     public String organization;
     public String jobTitle;
     public String notes;
+    public String labelsJson;    // JSON array of label name strings
     public long archivedAt;      // epoch ms
 
     public static class Phone {
@@ -69,5 +70,15 @@ public class ArchivedContact {
     public String getPrimaryEmail() {
         List<Email> emails = getEmails();
         return emails.isEmpty() ? "" : emails.get(0).address;
+    }
+
+    public List<String> getLabels() {
+        List<String> list = new ArrayList<String>();
+        if (labelsJson == null || labelsJson.isEmpty()) return list;
+        try {
+            JSONArray arr = new JSONArray(labelsJson);
+            for (int i = 0; i < arr.length(); i++) list.add(arr.getString(i));
+        } catch (JSONException e) { /* ignore */ }
+        return list;
     }
 }

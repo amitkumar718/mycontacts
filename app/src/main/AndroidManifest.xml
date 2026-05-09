@@ -42,6 +42,16 @@
             android:label="@string/title_contact_detail"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.LabelsActivity"
+            android:label="@string/title_labels"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.LabelContactsActivity"
+            android:label=""
+            android:exported="false" />
+
     </application>
 
 </manifest>

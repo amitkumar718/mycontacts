@@ -26,4 +26,17 @@
     <string name="org">Organization</string>
     <string name="notes">Notes</string>
     <string name="archived_on">Archived on</string>
+    <string name="labels">Labels</string>
+    <string name="title_labels">Labels</string>
+    <string name="edit_labels">Edit Labels</string>
+    <string name="new_label">New Label</string>
+    <string name="label_name_hint">Label name</string>
+    <string name="add">Add</string>
+    <string name="save">Save</string>
+    <string name="labels_saved">Labels saved</string>
+    <string name="empty_labels">No labels yet</string>
+    <string name="empty_label_contacts">No contacts with this label</string>
+    <string name="add_contacts_to_label">Add contacts to</string>
+    <string name="contacts_updated">contact(s) updated</string>
+    <string name="no_name">(no name)</string>
 </resources>

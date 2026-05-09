@@ -69,6 +69,10 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_labels) {
+            startActivity(new Intent(this, LabelsActivity.class));
+            return true;
+        }
         if (item.getItemId() == R.id.action_export) {
             startExport();
             return true;

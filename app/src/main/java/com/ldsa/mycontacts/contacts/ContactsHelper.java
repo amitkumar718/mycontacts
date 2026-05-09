@@ -153,7 +153,35 @@ public class ContactsHelper {
             try { if (nc.moveToFirst()) ac.notes = nc.getString(0); } finally { nc.close(); }
         }
 
+        // Group memberships → labels
+        JSONArray labels = new JSONArray();
+        Cursor gc = cr.query(Data.CONTENT_URI,
+            new String[]{ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID},
+            Data.CONTACT_ID + "=? AND " + Data.MIMETYPE + "=?",
+            new String[]{String.valueOf(contactId),
+                ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE},
+            null);
+        if (gc != null) {
+            try {
+                while (gc.moveToNext()) {
+                    long groupId = gc.getLong(0);
+                    String title = getGroupTitle(cr, groupId);
+                    if (title != null && !title.isEmpty()) labels.put(title);
+                }
+            } finally { gc.close(); }
+        }
+        ac.labelsJson = labels.toString();
+
         return ac;
+    }
+
+    private static String getGroupTitle(ContentResolver cr, long groupId) {
+        Cursor c = cr.query(ContactsContract.Groups.CONTENT_URI,
+            new String[]{ContactsContract.Groups.TITLE},
+            ContactsContract.Groups._ID + "=?", new String[]{String.valueOf(groupId)}, null);
+        if (c == null) return null;
+        try { if (c.moveToFirst()) return c.getString(0); } finally { c.close(); }
+        return null;
     }
 
     public static void deleteDeviceContact(Context ctx, long contactId) throws Exception {
@@ -231,5 +259,53 @@ public class ContactsHelper {
         }
 
         cr.applyBatch(ContactsContract.AUTHORITY, ops);
+
+        // Restore labels as group memberships (must happen after batch so raw contact exists)
+        for (String label : ac.getLabels()) {
+            long groupId = getOrCreateGroup(cr, label, accountType, accountName);
+            if (groupId > 0) {
+                Cursor rawCur = cr.query(RawContacts.CONTENT_URI,
+                    new String[]{RawContacts._ID},
+                    RawContacts.ACCOUNT_TYPE + "=? AND " + RawContacts.ACCOUNT_NAME + "=?",
+                    new String[]{accountType != null ? accountType : "",
+                        accountName != null ? accountName : ""},
+                    RawContacts._ID + " DESC");
+                if (rawCur != null) {
+                    try {
+                        if (rawCur.moveToFirst()) {
+                            long rawId = rawCur.getLong(0);
+                            android.content.ContentValues cv = new android.content.ContentValues();
+                            cv.put(Data.RAW_CONTACT_ID, rawId);
+                            cv.put(Data.MIMETYPE,
+                                ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE);
+                            cv.put(ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, groupId);
+                            cr.insert(Data.CONTENT_URI, cv);
+                        }
+                    } finally { rawCur.close(); }
+                }
+            }
+        }
+    }
+
+    private static long getOrCreateGroup(ContentResolver cr, String title,
+            String accountType, String accountName) {
+        String sel = ContactsContract.Groups.TITLE + "=?";
+        String[] args = new String[]{title};
+        if (accountType != null) {
+            sel += " AND " + ContactsContract.Groups.ACCOUNT_TYPE + "=?";
+            args = new String[]{title, accountType};
+        }
+        Cursor c = cr.query(ContactsContract.Groups.CONTENT_URI,
+            new String[]{ContactsContract.Groups._ID}, sel, args, null);
+        if (c != null) {
+            try { if (c.moveToFirst()) return c.getLong(0); } finally { c.close(); }
+        }
+        android.content.ContentValues cv = new android.content.ContentValues();
+        cv.put(ContactsContract.Groups.TITLE, title);
+        cv.put(ContactsContract.Groups.ACCOUNT_TYPE, accountType);
+        cv.put(ContactsContract.Groups.ACCOUNT_NAME, accountName);
+        android.net.Uri uri = cr.insert(ContactsContract.Groups.CONTENT_URI, cv);
+        if (uri == null) return -1;
+        return ContentUris.parseId(uri);
     }
 }
