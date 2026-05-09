@@ -40,7 +40,7 @@
 
         </LinearLayout>
 
-        <!-- Count strip -->
+        <!-- Count + view-mode toggle strip -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -60,6 +60,30 @@
                 android:text="0 archived"
                 android:textColor="#757575"
                 android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnToggleAlpha"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:text="A-Z"
+                android:textSize="11sp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:layout_marginRight="4dp"
+                android:background="@drawable/bg_toggle_active"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/btnToggleLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:text="@string/title_labels"
+                android:textSize="11sp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:layout_marginRight="8dp"
+                android:background="@drawable/bg_toggle_inactive"
+                android:textColor="#1565C0" />
 
         </LinearLayout>
 

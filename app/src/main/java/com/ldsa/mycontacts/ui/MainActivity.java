@@ -26,37 +26,47 @@ import java.util.List;
 public class MainActivity extends Activity {
 
     private static final int REQ_CONTACTS_PERM = 1;
+    private static final String PREF_VIEW_MODE  = "view_mode";
     static final String EXTRA_CONTACT_ID = "contact_id";
 
     private EditText mEtSearch;
     private ListView mListView;
     private TextView mTvEmpty;
     private TextView mTvCount;
+    private Button mBtnToggleAlpha;
+    private Button mBtnToggleLabel;
     private ArchivedContactsAdapter mAdapter;
     private ContactDatabase mDb;
     private List<ArchivedContact> mContacts;
+    int mViewMode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mDb       = ContactDatabase.getInstance(this);
-        mEtSearch = (EditText)  findViewById(R.id.etSearch);
-        mListView = (ListView)  findViewById(R.id.listArchived);
-        mTvEmpty  = (TextView)  findViewById(R.id.tvEmpty);
-        mTvCount  = (TextView)  findViewById(R.id.tvCount);
-        Button fabArchive = (Button) findViewById(R.id.fabArchive);
+        mDb             = ContactDatabase.getInstance(this);
+        mEtSearch       = (EditText)  findViewById(R.id.etSearch);
+        mListView       = (ListView)  findViewById(R.id.listArchived);
+        mTvEmpty        = (TextView)  findViewById(R.id.tvEmpty);
+        mTvCount        = (TextView)  findViewById(R.id.tvCount);
+        mBtnToggleAlpha = (Button)    findViewById(R.id.btnToggleAlpha);
+        mBtnToggleLabel = (Button)    findViewById(R.id.btnToggleLabel);
+        Button fabArchive = (Button)  findViewById(R.id.fabArchive);
 
+        mViewMode = getPreferences(MODE_PRIVATE).getInt(PREF_VIEW_MODE, ArchivedContactsAdapter.MODE_ALPHA);
         mContacts = mDb.getAll();
-        mAdapter  = new ArchivedContactsAdapter(this, mContacts);
+        mAdapter  = new ArchivedContactsAdapter(this, mContacts, mViewMode);
         mListView.setAdapter(mAdapter);
 
         updateEmptyState();
+        updateToggleButtons();
 
         mEtSearch.addTextChangedListener(new SearchWatcher(this));
         mListView.setOnItemClickListener(new ItemClickListener(this));
         fabArchive.setOnClickListener(new ArchiveNewClickListener(this));
+        mBtnToggleAlpha.setOnClickListener(new ToggleModeListener(this, ArchivedContactsAdapter.MODE_ALPHA));
+        mBtnToggleLabel.setOnClickListener(new ToggleModeListener(this, ArchivedContactsAdapter.MODE_LABEL));
 
         checkContactsPermission();
     }
@@ -90,6 +100,28 @@ public class MainActivity extends Activity {
         mContacts = mDb.search(query);
         mAdapter.setItems(mContacts);
         updateEmptyState();
+    }
+
+    void setViewMode(int mode) {
+        mViewMode = mode;
+        getPreferences(MODE_PRIVATE).edit().putInt(PREF_VIEW_MODE, mode).apply();
+        mAdapter.setMode(mode);
+        reload(mEtSearch.getText().toString());
+        updateToggleButtons();
+    }
+
+    private void updateToggleButtons() {
+        if (mViewMode == ArchivedContactsAdapter.MODE_ALPHA) {
+            mBtnToggleAlpha.setBackgroundResource(R.drawable.bg_toggle_active);
+            mBtnToggleAlpha.setTextColor(0xFFFFFFFF);
+            mBtnToggleLabel.setBackgroundResource(R.drawable.bg_toggle_inactive);
+            mBtnToggleLabel.setTextColor(0xFF1565C0);
+        } else {
+            mBtnToggleLabel.setBackgroundResource(R.drawable.bg_toggle_active);
+            mBtnToggleLabel.setTextColor(0xFFFFFFFF);
+            mBtnToggleAlpha.setBackgroundResource(R.drawable.bg_toggle_inactive);
+            mBtnToggleAlpha.setTextColor(0xFF1565C0);
+        }
     }
 
     private void updateEmptyState() {
@@ -163,6 +195,13 @@ public class MainActivity extends Activity {
             if (id < 0) return;
             mMain.openDetail(id);
         }
+    }
+
+    static class ToggleModeListener implements View.OnClickListener {
+        private final MainActivity mMain;
+        private final int mMode;
+        ToggleModeListener(MainActivity main, int mode) { mMain = main; mMode = mode; }
+        public void onClick(View v) { mMain.setViewMode(mMode); }
     }
 
     static class ArchiveNewClickListener implements View.OnClickListener {

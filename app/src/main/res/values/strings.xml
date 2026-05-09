@@ -39,4 +39,7 @@
     <string name="add_contacts_to_label">Add contacts to</string>
     <string name="contacts_updated">contact(s) updated</string>
     <string name="no_name">(no name)</string>
+    <string name="hide_labeled_contacts">Hide labeled</string>
+    <string name="show_all_contacts">Show all</string>
+    <string name="no_unlabeled_contacts">All contacts already have labels</string>
 </resources>

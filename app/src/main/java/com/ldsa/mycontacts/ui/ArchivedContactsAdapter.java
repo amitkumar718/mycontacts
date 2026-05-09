@@ -11,6 +11,8 @@ import com.ldsa.mycontacts.R;
 import com.ldsa.mycontacts.db.ArchivedContact;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -19,21 +21,34 @@ public class ArchivedContactsAdapter extends BaseAdapter {
     static final int TYPE_HEADER  = 0;
     static final int TYPE_CONTACT = 1;
 
+    static final int MODE_ALPHA = 0;
+    static final int MODE_LABEL = 1;
+
     static final int[] AVATAR_COLORS = {
         0xFF1565C0, 0xFF2E7D32, 0xFF6A1B9A,
         0xFF00838F, 0xFFAD1457, 0xFF4527A0
     };
 
     private final Context mCtx;
+    private int mMode;
     private List<Object> mItems; // String = section header, ArchivedContact = row
 
-    public ArchivedContactsAdapter(Context ctx, List<ArchivedContact> contacts) {
+    public ArchivedContactsAdapter(Context ctx, List<ArchivedContact> contacts, int mode) {
         mCtx   = ctx;
-        mItems = buildSectionedList(contacts);
+        mMode  = mode;
+        mItems = buildList(contacts);
+    }
+
+    public ArchivedContactsAdapter(Context ctx, List<ArchivedContact> contacts) {
+        this(ctx, contacts, MODE_ALPHA);
+    }
+
+    public void setMode(int mode) {
+        mMode = mode;
     }
 
     public void setItems(List<ArchivedContact> contacts) {
-        mItems = buildSectionedList(contacts);
+        mItems = buildList(contacts);
         notifyDataSetChanged();
     }
 
@@ -85,6 +100,10 @@ public class ArchivedContactsAdapter extends BaseAdapter {
         return convertView;
     }
 
+    private List<Object> buildList(List<ArchivedContact> contacts) {
+        return mMode == MODE_LABEL ? buildLabeledList(contacts) : buildSectionedList(contacts);
+    }
+
     private List<Object> buildSectionedList(List<ArchivedContact> contacts) {
         List<Object> items = new ArrayList<Object>();
         String currentSection = "";
@@ -102,6 +121,38 @@ public class ArchivedContactsAdapter extends BaseAdapter {
                 currentSection = first;
             }
             items.add(c);
+        }
+        return items;
+    }
+
+    private List<Object> buildLabeledList(List<ArchivedContact> contacts) {
+        LinkedHashMap<String, List<ArchivedContact>> byLabel =
+            new LinkedHashMap<String, List<ArchivedContact>>();
+        List<ArchivedContact> noLabel = new ArrayList<ArchivedContact>();
+
+        for (ArchivedContact c : contacts) {
+            List<String> labels = c.getLabels();
+            if (labels.isEmpty()) {
+                noLabel.add(c);
+            } else {
+                for (String label : labels) {
+                    if (!byLabel.containsKey(label)) byLabel.put(label, new ArrayList<ArchivedContact>());
+                    byLabel.get(label).add(c);
+                }
+            }
+        }
+
+        List<String> sortedLabels = new ArrayList<String>(byLabel.keySet());
+        Collections.sort(sortedLabels, String.CASE_INSENSITIVE_ORDER);
+
+        List<Object> items = new ArrayList<Object>();
+        for (String label : sortedLabels) {
+            items.add(label);
+            for (ArchivedContact c : byLabel.get(label)) items.add(c);
+        }
+        if (!noLabel.isEmpty()) {
+            items.add("No Label");
+            for (ArchivedContact c : noLabel) items.add(c);
         }
         return items;
     }
