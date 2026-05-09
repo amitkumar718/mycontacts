@@ -7,8 +7,18 @@
         android:showAsAction="never" />
 
     <item
+        android:id="@+id/action_share_backup"
+        android:title="@string/share_backup"
+        android:showAsAction="never" />
+
+    <item
         android:id="@+id/action_export"
-        android:title="Export to Drive"
+        android:title="@string/upload_to_drive"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_import"
+        android:title="@string/import_from_csv"
         android:showAsAction="never" />
 
 </menu>

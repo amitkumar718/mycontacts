@@ -52,6 +52,12 @@
             android:label=""
             android:exported="false" />
 
+        <provider
+            android:name=".contacts.CsvFileProvider"
+            android:authorities="com.ldsa.mycontacts.csvprovider"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
     </application>
 
 </manifest>

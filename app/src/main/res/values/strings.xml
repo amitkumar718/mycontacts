@@ -53,4 +53,12 @@
     <string name="contacts_restored">contact(s) restored</string>
     <string name="contacts_deleted">contact(s) deleted</string>
     <string name="contacts_labeled">contact(s) labeled</string>
+    <string name="share_backup">Share Backup</string>
+    <string name="upload_to_drive">Upload to Drive</string>
+    <string name="import_from_csv">Import from CSV</string>
+    <string name="preparing_backup">Preparing backup…</string>
+    <string name="importing">Importing…</string>
+    <string name="contacts_imported">contact(s) imported</string>
+    <string name="no_contacts_to_backup">No contacts to backup</string>
+    <string name="import_failed">Import failed</string>
 </resources>

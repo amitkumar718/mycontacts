@@ -21,10 +21,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.ldsa.mycontacts.R;
+import com.ldsa.mycontacts.contacts.BackupHelper;
 import com.ldsa.mycontacts.contacts.ContactsHelper;
 import com.ldsa.mycontacts.contacts.ExportHelper;
+import com.ldsa.mycontacts.contacts.ImportHelper;
 import com.ldsa.mycontacts.db.ArchivedContact;
 import com.ldsa.mycontacts.db.ContactDatabase;
+
+import android.net.Uri;
 
 import org.json.JSONArray;
 
@@ -36,6 +40,7 @@ import java.util.Set;
 public class MainActivity extends Activity {
 
     private static final int REQ_CONTACTS_PERM = 1;
+    private static final int REQ_IMPORT_FILE   = 2;
     private static final String PREF_VIEW_MODE  = "view_mode";
     static final String EXTRA_CONTACT_ID = "contact_id";
 
@@ -105,8 +110,16 @@ public class MainActivity extends Activity {
             startActivity(new Intent(this, LabelsActivity.class));
             return true;
         }
+        if (item.getItemId() == R.id.action_share_backup) {
+            startBackup();
+            return true;
+        }
         if (item.getItemId() == R.id.action_export) {
             startExport();
+            return true;
+        }
+        if (item.getItemId() == R.id.action_import) {
+            startImport();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -122,6 +135,18 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         reload(mEtSearch.getText().toString());
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQ_IMPORT_FILE && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            if (uri != null) {
+                Toast.makeText(this, R.string.importing, Toast.LENGTH_SHORT).show();
+                ImportHelper.importFromUri(this, uri, new ImportCallbackImpl(this));
+            }
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     // --- Normal mode ---
@@ -305,6 +330,36 @@ public class MainActivity extends Activity {
         return arr;
     }
 
+    // --- Backup / Import ---
+
+    void startBackup() {
+        List<ArchivedContact> all = mDb.getAll();
+        if (all.isEmpty()) {
+            Toast.makeText(this, R.string.no_contacts_to_backup, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, R.string.preparing_backup, Toast.LENGTH_SHORT).show();
+        new BackupThread(this, all, new Handler(Looper.getMainLooper())).start();
+    }
+
+    void onBackupReady(String filename) {
+        startActivity(BackupHelper.buildShareIntent(filename));
+    }
+
+    void startImport() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQ_IMPORT_FILE);
+    }
+
+    void onImportDone(int imported, int skipped) {
+        reload(mEtSearch.getText().toString());
+        String msg = imported + " " + getString(R.string.contacts_imported);
+        if (skipped > 0) msg += ", " + skipped + " skipped";
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
     // --- Permissions ---
 
     private void checkContactsPermission() {
@@ -333,10 +388,10 @@ public class MainActivity extends Activity {
     void startExport() {
         List<ArchivedContact> all = mDb.getAll();
         if (all.isEmpty()) {
-            Toast.makeText(this, "No contacts to export", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.no_contacts_to_backup, Toast.LENGTH_SHORT).show();
             return;
         }
-        Toast.makeText(this, "Uploading to Google Drive…", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, R.string.upload_to_drive, Toast.LENGTH_SHORT).show();
         ExportHelper.exportToDrive(this, all, new ExportCallbackImpl(this));
     }
 
@@ -512,6 +567,52 @@ public class MainActivity extends Activity {
         public void onError(String message) {
             Toast.makeText(mMain,
                 mMain.getString(R.string.export_failed) + ": " + message,
+                Toast.LENGTH_LONG).show();
+        }
+    }
+
+    static class BackupThread extends Thread {
+        private final MainActivity mMain;
+        private final List<ArchivedContact> mContacts;
+        private final Handler mHandler;
+        BackupThread(MainActivity main, List<ArchivedContact> contacts, Handler handler) {
+            mMain = main; mContacts = contacts; mHandler = handler;
+        }
+        public void run() {
+            try {
+                String content = BackupHelper.buildCsvContent(mContacts);
+                String filename = BackupHelper.writeCsv(mMain, content);
+                mHandler.post(new BackupResultRunnable(mMain, filename));
+            } catch (Exception e) {
+                final String msg = e.getMessage() != null ? e.getMessage() : "Backup failed";
+                mHandler.post(new BackupErrorRunnable(mMain, msg));
+            }
+        }
+    }
+
+    static class BackupResultRunnable implements Runnable {
+        private final MainActivity mMain;
+        private final String mFilename;
+        BackupResultRunnable(MainActivity main, String filename) { mMain = main; mFilename = filename; }
+        public void run() { mMain.onBackupReady(mFilename); }
+    }
+
+    static class BackupErrorRunnable implements Runnable {
+        private final MainActivity mMain;
+        private final String mMsg;
+        BackupErrorRunnable(MainActivity main, String msg) { mMain = main; mMsg = msg; }
+        public void run() {
+            Toast.makeText(mMain, mMsg, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    static class ImportCallbackImpl implements ImportHelper.Callback {
+        private final MainActivity mMain;
+        ImportCallbackImpl(MainActivity main) { mMain = main; }
+        public void onDone(int imported, int skipped) { mMain.onImportDone(imported, skipped); }
+        public void onError(String message) {
+            Toast.makeText(mMain,
+                mMain.getString(R.string.import_failed) + ": " + message,
                 Toast.LENGTH_LONG).show();
         }
     }

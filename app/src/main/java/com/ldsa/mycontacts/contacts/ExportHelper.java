@@ -7,6 +7,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.ldsa.mycontacts.contacts.BackupHelper;
 import com.ldsa.mycontacts.db.ArchivedContact;
 
 import java.io.BufferedReader;
@@ -67,9 +68,9 @@ public class ExportHelper {
                 final String token = bundle.getString(AccountManager.KEY_AUTHTOKEN);
                 if (token == null) { postError("Could not get Google auth token"); return; }
 
-                byte[] csvBytes = buildCsv(mContacts);
+                byte[] csvBytes = BackupHelper.buildCsvContent(mContacts).getBytes(Charset.forName("UTF-8"));
                 String filename = "contacts_archive_" +
-                    new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".csv";
+                    new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
 
                 String fileUrl = uploadToDrive(token, filename, csvBytes);
                 mMain.post(new SuccessRunnable(mCallback, fileUrl));
@@ -83,33 +84,9 @@ public class ExportHelper {
             mMain.post(new ErrorRunnable(mCallback, msg));
         }
 
-        private byte[] buildCsv(List<ArchivedContact> contacts) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("Name,Phone,Email,Organization,Job Title,Notes,Archived On\n");
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-            for (ArchivedContact c : contacts) {
-                sb.append(csvCell(c.displayName)).append(",");
-                sb.append(csvCell(c.getPrimaryPhone())).append(",");
-                sb.append(csvCell(c.getPrimaryEmail())).append(",");
-                sb.append(csvCell(c.organization)).append(",");
-                sb.append(csvCell(c.jobTitle)).append(",");
-                sb.append(csvCell(c.notes)).append(",");
-                sb.append(csvCell(sdf.format(new Date(c.archivedAt)))).append("\n");
-            }
-            return sb.toString().getBytes(Charset.forName("UTF-8"));
-        }
-
-        private String csvCell(String val) {
-            if (val == null || val.isEmpty()) return "";
-            if (val.contains(",") || val.contains("\"") || val.contains("\n")) {
-                return "\"" + val.replace("\"", "\"\"") + "\"";
-            }
-            return val;
-        }
-
         private String uploadToDrive(String token, String filename, byte[] csv) throws Exception {
             String boundary = "boundary_mycontacts_" + System.currentTimeMillis();
-            String metaJson = "{\"name\":\"" + filename + "\",\"mimeType\":\"text/csv\"}";
+            String metaJson = "{\"name\":\"" + filename + "\",\"mimeType\":\"application/vnd.google-apps.spreadsheet\"}";
             String CRLF = "\r\n";
 
             ByteArrayOutputStream body = new ByteArrayOutputStream();
@@ -155,9 +132,9 @@ public class ExportHelper {
 
             String fileId = extractJsonString(resp.toString(), "id");
             if (fileId != null && !fileId.isEmpty()) {
-                return "https://drive.google.com/file/d/" + fileId + "/view";
+                return "https://docs.google.com/spreadsheets/d/" + fileId + "/edit";
             }
-            return "https://drive.google.com";
+            return "https://docs.google.com";
         }
 
         private String extractJsonString(String json, String key) {
