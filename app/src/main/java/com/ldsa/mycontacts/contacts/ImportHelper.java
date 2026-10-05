@@ -32,6 +32,123 @@ public class ImportHelper {
         new ImportThread(ctx, uri, callback, handler).start();
     }
 
+    // Parse CSV text into ArchivedContact rows (no DB insert). Used by Dropbox sync.
+    public static List<ArchivedContact> parseContacts(String csv) {
+        List<ArchivedContact> out = new ArrayList<ArchivedContact>();
+        List<List<String>> rows = parseCsvRows(csv);
+        if (rows.isEmpty()) return out;
+        int startRow = 0;
+        if (!rows.get(0).isEmpty() && rows.get(0).get(0).equalsIgnoreCase("Name")) startRow = 1;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+        for (int i = startRow; i < rows.size(); i++) {
+            List<String> row = rows.get(i);
+            if (row.isEmpty() || (row.size() == 1 && row.get(0).isEmpty())) continue;
+            try {
+                out.add(rowToContact(row, sdf));
+            } catch (Exception e) { /* skip malformed */ }
+        }
+        return out;
+    }
+
+    private static ArchivedContact rowToContact(List<String> row, SimpleDateFormat sdf)
+            throws Exception {
+        ArchivedContact c = new ArchivedContact();
+        c.displayName = cellAt(row, 0);
+
+        JSONArray phonesArr = new JSONArray();
+        String phonesStr = cellAt(row, 1);
+        if (!phonesStr.isEmpty()) {
+            for (String phone : phonesStr.split(";")) {
+                phone = phone.trim();
+                if (!phone.isEmpty()) {
+                    JSONObject obj = new JSONObject();
+                    obj.put("type", 2);
+                    obj.put("number", phone);
+                    phonesArr.put(obj);
+                }
+            }
+        }
+        c.phonesJson = phonesArr.length() > 0 ? phonesArr.toString() : "";
+
+        JSONArray emailsArr = new JSONArray();
+        String emailsStr = cellAt(row, 2);
+        if (!emailsStr.isEmpty()) {
+            for (String email : emailsStr.split(";")) {
+                email = email.trim();
+                if (!email.isEmpty()) {
+                    JSONObject obj = new JSONObject();
+                    obj.put("type", 1);
+                    obj.put("address", email);
+                    emailsArr.put(obj);
+                }
+            }
+        }
+        c.emailsJson = emailsArr.length() > 0 ? emailsArr.toString() : "";
+
+        c.organization = cellAt(row, 3);
+        c.jobTitle = cellAt(row, 4);
+        c.notes = cellAt(row, 5);
+
+        JSONArray labelsArr = new JSONArray();
+        String labelsStr = cellAt(row, 6);
+        if (!labelsStr.isEmpty()) {
+            for (String label : labelsStr.split(";")) {
+                label = label.trim();
+                if (!label.isEmpty()) labelsArr.put(label);
+            }
+        }
+        c.labelsJson = labelsArr.length() > 0 ? labelsArr.toString() : "";
+
+        String dateStr = cellAt(row, 7);
+        long ts = System.currentTimeMillis();
+        if (!dateStr.isEmpty()) {
+            try { ts = sdf.parse(dateStr).getTime(); } catch (Exception ignored) {}
+        }
+        c.archivedAt = ts;
+        return c;
+    }
+
+    private static String cellAt(List<String> row, int idx) {
+        return idx < row.size() ? row.get(idx) : "";
+    }
+
+    public static List<List<String>> parseCsvRows(String content) {
+        List<List<String>> rows = new ArrayList<List<String>>();
+        List<String> current = new ArrayList<String>();
+        StringBuilder field = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (inQuotes) {
+                if (c == '"') {
+                    if (i + 1 < content.length() && content.charAt(i + 1) == '"') {
+                        field.append('"'); i++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    field.append(c);
+                }
+            } else {
+                if (c == '"') {
+                    inQuotes = true;
+                } else if (c == ',') {
+                    current.add(field.toString()); field.setLength(0);
+                } else if (c == '\n') {
+                    current.add(field.toString()); field.setLength(0);
+                    rows.add(current); current = new ArrayList<String>();
+                } else if (c != '\r') {
+                    field.append(c);
+                }
+            }
+        }
+        if (field.length() > 0 || !current.isEmpty()) {
+            current.add(field.toString());
+            rows.add(current);
+        }
+        return rows;
+    }
+
     static class ImportThread extends Thread {
         private final Context mCtx;
         private final Uri mUri;
@@ -53,7 +170,7 @@ public class ImportHelper {
                 while ((n = reader.read(buf)) != -1) sb.append(buf, 0, n);
                 reader.close();
 
-                List<List<String>> rows = parseCsv(sb.toString());
+                List<List<String>> rows = parseCsvRows(sb.toString());
                 if (rows.isEmpty()) { postError("Empty file"); return; }
 
                 int startRow = 0;
@@ -144,48 +261,6 @@ public class ImportHelper {
 
         private String get(List<String> row, int idx) {
             return idx < row.size() ? row.get(idx) : "";
-        }
-
-        private List<List<String>> parseCsv(String content) {
-            List<List<String>> rows = new ArrayList<List<String>>();
-            List<String> current = new ArrayList<String>();
-            StringBuilder field = new StringBuilder();
-            boolean inQuotes = false;
-
-            for (int i = 0; i < content.length(); i++) {
-                char c = content.charAt(i);
-                if (inQuotes) {
-                    if (c == '"') {
-                        if (i + 1 < content.length() && content.charAt(i + 1) == '"') {
-                            field.append('"');
-                            i++;
-                        } else {
-                            inQuotes = false;
-                        }
-                    } else {
-                        field.append(c);
-                    }
-                } else {
-                    if (c == '"') {
-                        inQuotes = true;
-                    } else if (c == ',') {
-                        current.add(field.toString());
-                        field.setLength(0);
-                    } else if (c == '\n') {
-                        current.add(field.toString());
-                        field.setLength(0);
-                        rows.add(current);
-                        current = new ArrayList<String>();
-                    } else if (c != '\r') {
-                        field.append(c);
-                    }
-                }
-            }
-            if (field.length() > 0 || !current.isEmpty()) {
-                current.add(field.toString());
-                rows.add(current);
-            }
-            return rows;
         }
     }
 

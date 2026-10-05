@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
+
+    <!-- Toggle strip -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#1565C0"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical"
+        android:elevation="4dp">
+
+        <Button
+            android:id="@+id/btnToggleUpstream"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_marginRight="6dp"
+            android:text="@string/dbx_tab_upstream_only"
+            android:textSize="12sp"
+            android:background="@drawable/bg_toggle_active"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btnToggleLocal"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:text="@string/dbx_tab_local_only"
+            android:textSize="12sp"
+            android:background="@drawable/bg_toggle_inactive"
+            android:textColor="#1565C0" />
+
+    </LinearLayout>
+
+    <!-- Status + spinner row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
+
+        <ProgressBar
+            android:id="@+id/dbxProgress"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginRight="10dp" />
+
+        <TextView
+            android:id="@+id/tvDbxStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#757575" />
+
+    </LinearLayout>
+
+    <!-- Hint line -->
+    <TextView
+        android:id="@+id/tvDbxHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="12sp"
+        android:textColor="#9E9E9E"
+        android:background="#F5F5F5"
+        android:visibility="gone" />
+
+    <!-- Contact list -->
+    <ListView
+        android:id="@+id/listDbx"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="#F0F0F0"
+        android:dividerHeight="1dp"
+        android:background="#FFFFFF"
+        android:visibility="gone" />
+
+    <!-- Empty state -->
+    <TextView
+        android:id="@+id/tvDbxEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:textColor="#BDBDBD"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <!-- Bottom action bar: Cancel | Import (N) | Push -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:elevation="4dp">
+
+        <Button
+            android:id="@+id/btnDbxCancel"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginRight="6dp"
+            android:text="@string/cancel"
+            android:textSize="13sp"
+            android:background="@drawable/bg_toggle_inactive"
+            android:textColor="#1565C0" />
+
+        <Button
+            android:id="@+id/btnDbxImport"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginRight="6dp"
+            android:text="@string/dbx_import"
+            android:textSize="13sp"
+            android:background="@drawable/bg_button_primary"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btnDbxPush"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="@string/dbx_push"
+            android:textSize="13sp"
+            android:background="@drawable/bg_button_export"
+            android:textColor="#FFFFFF" />
+
+    </LinearLayout>
+
+</LinearLayout>

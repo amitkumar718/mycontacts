@@ -53,6 +53,11 @@
             android:label="@string/sync_check"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.DropboxSyncActivity"
+            android:label="@string/dropbox_sync_title"
+            android:exported="false" />
+
         <provider
             android:name=".contacts.CsvFileProvider"
             android:authorities="com.ldsa.mycontacts.csvprovider"
