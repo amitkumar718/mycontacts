@@ -1,22 +1,34 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Local config
+local.properties
+build-env.sh
+*.properties.local
+
+# Android Studio
+.idea/
+*.iml
+.DS_Store
+
+# Keystore
+*.jks
+*.keystore
+/.local-keystore/
+
 # Build outputs
-/app/build/
-/build/
 *.apk
 *.aab
 
-# Gradle
-/.gradle/
-local.properties
+# Logs
+build.log
+build-run.log
+*.log
 
-# Generated sources
-app/src/main/java/com/ldsa/mycontacts/R.java
-
-# IDE
-.idea/
-*.iml
-
-# Keystore
-/.local-keystore/
+# Backups
+*.bak
 
 # Claude
 .claude/
