@@ -97,7 +97,10 @@ app/src/main/java/com/ldsa/mycontacts/
     ContactsHelper.java       — ContactsContract read/write (archive, restore, delete, group memberships)
     BackupHelper.java         — builds CSV string from archived contacts; writes to internal storage
     ExportHelper.java         — uploads CSV to Google Drive as a Spreadsheet via OAuth2 + REST
-    ImportHelper.java         — parses CSV (state-machine parser) and inserts into ContactDatabase
+    DropboxHelper.java        — Dropbox API client: upload (mode:add/update) + rev-based sync
+                                (get_metadata + conditional download); logs to tag mycontacts.dropbox
+    ImportHelper.java         — CSV parser (state-machine); importFromUri inserts to DB; parseContacts
+                                / parseCsvRows exposed as public statics for Dropbox sync reuse
     CsvFileProvider.java      — minimal ContentProvider replacing FileProvider (no AndroidX)
   ui/
     MainActivity.java         — archived list: search, A-Z/label view toggle, long-press multi-select
@@ -110,19 +113,29 @@ app/src/main/java/com/ldsa/mycontacts/
     LabelContactsActivity.java   — contacts filtered by a single label
     SyncActivity.java            — Sync Check: two tabs (Duplicates / Archive Only) to reconcile
                                    archive vs device contacts; selection via blue row background
+    DropboxSyncActivity.java     — Dropbox Sync: two tabs (Upstream Only / Local Only) to reconcile
+                                   archive vs the canonical CSV in Dropbox; same selection model
 ```
 
 **Data flow for archive:** `DeviceContactsActivity` → `ContactsHelper.readFullContact()` (reads all data rows including group memberships → labels) → `ContactDatabase.insert()` → `ContactsHelper.deleteDeviceContact()`.
 
 **Data flow for restore:** `ContactDetailActivity`, bulk action in `MainActivity`, or `SyncActivity` "Archive Only" tab → `ContactsHelper.restoreContact()` (batch `ContentProviderOperation` insert, then group membership rows) → `ContactDatabase.delete()`.
 
-**Sync matching** (`SyncActivity`): archived contacts are split into two lists by comparing against device contacts — matched on normalized display name OR normalized phone number (last 10 digits, strips country-code prefix differences).
+**Sync matching** (`SyncActivity` and `DropboxSyncActivity`): same matching semantics in both — normalized display name OR normalized phone number (last 10 digits, strips country-code prefix differences). The two activities differ only in what they compare against (device contacts vs the Dropbox CSV).
 
 **Labels** are stored in `ArchivedContact.labelsJson` as a JSON array of strings (`["Work","Family"]`). `ContactDatabase.getByLabel()` uses a `LIKE "%\"label\"%"` query. `ContactDatabase.getAllLabelCounts()` iterates all contacts in memory to build the count map.
 
-**Selection mode** in `MainActivity` and `SyncActivity`: row background changes to light blue (`0xFFBBDEFB`) for selected rows — no checkboxes anywhere.
+**Selection mode** in `MainActivity`, `SyncActivity`, `DropboxSyncActivity`: row background changes to light blue (`0xFFBBDEFB`) for selected rows — no checkboxes anywhere.
 
 **Google Drive export** (`ExportHelper`): gets an OAuth token via `AccountManager.getAuthToken`, uploads a multipart POST with `mimeType: application/vnd.google-apps.spreadsheet` so Drive auto-converts the CSV to a Google Sheet.
+
+**Dropbox sync** (`DropboxHelper` + `DropboxSyncActivity`): follows Dropbox's canonical-file + rev-based sync pattern.
+- Single file at `/contacts.csv` in the App Folder scope — resolves to `/Apps/<AppName>/contacts.csv` in the actual Dropbox. No timestamped backup pile.
+- Last-seen `rev` stored in `SharedPreferences("dropbox", "last_rev")`.
+- Sync does `POST /files/get_metadata` first (cheap) and skips the download entirely when the server rev matches the stored rev. Three outcomes: `onEmpty` (file not yet on Dropbox), `onUnchanged` (short-circuit), `onChanged` (download → diff → show both tabs).
+- Push uses `POST /files/upload` with `mode:{"update":"<rev>"}` for optimistic concurrency — Dropbox returns 409 if a concurrent modification occurred; `onConflict` triggers an auto re-sync. First-ever push uses `mode:"add"`.
+- Auth: pasted long-lived access token stored in `SharedPreferences("dropbox", "access_token")`. Token must have `files.content.{read,write}` + `files.metadata.read` scopes. Dropbox returns HTTP 400 (not 401) when a token lacks a scope, so 400 responses containing `"missing_scope"` or `"required scope"` are coerced to the auth-failed path to re-prompt the user. On real auth failure, both token and rev are cleared.
+- All HTTP activity logs to logcat tag `mycontacts.dropbox` with request args, response code, and error bodies — grep this tag for post-run diagnosis.
 
 ## SQLite schema
 
