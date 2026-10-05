@@ -52,6 +52,11 @@
             android:label=""
             android:exported="false" />
 
+        <activity
+            android:name=".ui.SyncActivity"
+            android:label="@string/sync_check"
+            android:exported="false" />
+
         <provider
             android:name=".contacts.CsvFileProvider"
             android:authorities="com.ldsa.mycontacts.csvprovider"

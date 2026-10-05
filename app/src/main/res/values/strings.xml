@@ -61,4 +61,17 @@
     <string name="contacts_imported">contact(s) imported</string>
     <string name="no_contacts_to_backup">No contacts to backup</string>
     <string name="import_failed">Import failed</string>
+    <string name="action_sync">Sync Check</string>
+    <string name="sync_check">Sync Check</string>
+    <string name="sync_loading">Checking contacts…</string>
+    <string name="sync_tab_duplicates">Duplicates</string>
+    <string name="sync_tab_archive_only">Archive Only</string>
+    <string name="sync_status_duplicates">archived contact(s) also exist on your device</string>
+    <string name="sync_status_archive_only">archived contact(s) are not on your device</string>
+    <string name="sync_empty_duplicates">No duplicates found</string>
+    <string name="sync_empty_archive_only">All archived contacts exist on your device</string>
+    <string name="sync_hint_duplicates">These are in your archive and on your device. Tap to deselect, then delete the redundant archive copy.</string>
+    <string name="sync_hint_archive_only">These are only in your archive. Tap to deselect, then restore to your device.</string>
+    <string name="sync_confirm_delete">archived contact(s) will be permanently deleted from the archive. Continue?</string>
+    <string name="sync_confirm_restore">archived contact(s) will be restored to your device contacts. Continue?</string>
 </resources>
