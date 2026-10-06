@@ -141,40 +141,27 @@ public class DropboxSyncActivity extends Activity {
     }
 
     void onSyncUnchanged() {
-        // Server rev matches our last-synced rev. Nothing new to pull.
-        // We don't track incremental local changes, so Local Only is unknown.
-        // Show "already in sync" state with Push available for force re-upload.
-        mProgress.setVisibility(View.GONE);
-        mInSync = true;
-        mLoaded = true;
-        mUpstreamOnly = new ArrayList<SyncItem>();
-        mLocalOnly = new ArrayList<SyncItem>();
-        mTvStatus.setText(R.string.dbx_already_in_sync);
-        mTvEmpty.setVisibility(View.VISIBLE);
-        mTvEmpty.setText(R.string.dbx_already_in_sync_hint);
-        mListView.setVisibility(View.GONE);
-        mTvHint.setVisibility(View.GONE);
-        updateToggleLabels();
-        mBtnImport.setEnabled(false);
-        mBtnPush.setEnabled(true);
+        // Server rev matches our last-synced rev. Auto-push current local state.
+        autoPush(null);  // null → use stored rev
     }
 
     void onSyncEmpty() {
+        // No file on Dropbox yet. Show Local Only tab so user can review/exclude
+        // before creating the first backup — this is a big moment, don't auto-push.
         mProgress.setVisibility(View.GONE);
-        mTvStatus.setText(R.string.dbx_empty_folder);
         mLoaded = true;
-        // No upstream — all local is "Local Only"
         mUpstreamOnly = new ArrayList<SyncItem>();
         mLocalOnly    = new ArrayList<SyncItem>();
         for (ArchivedContact c : mDb.getAll()) {
             SyncItem it = new SyncItem();
             it.contact = c;
-            it.selected = true; // all selected by default for push
+            it.selected = true;
             mLocalOnly.add(it);
         }
         updateToggleLabels();
         mBtnImport.setEnabled(false);
         if (mLocalOnly.isEmpty()) {
+            mTvStatus.setText(R.string.dbx_empty_folder);
             mTvEmpty.setVisibility(View.VISIBLE);
             mTvEmpty.setText(R.string.dbx_empty_folder_hint);
             mBtnPush.setEnabled(false);
@@ -182,6 +169,56 @@ public class DropboxSyncActivity extends Activity {
             // Jump to Local Only tab since there's no upstream to show
             switchMode(MODE_LOCAL_ONLY);
         }
+    }
+
+    /**
+     * Push current local state to Dropbox without showing the compare UI.
+     * firstPush=TRUE forces mode:add; firstPush=null uses stored rev with mode:update.
+     */
+    private void autoPush(Boolean firstPush) {
+        List<ArchivedContact> all = mDb.getAll();
+        if (all.isEmpty()) {
+            mProgress.setVisibility(View.GONE);
+            Toast.makeText(this, R.string.no_contacts_to_backup, Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        String rev = (firstPush != null && firstPush.booleanValue())
+            ? null
+            : getSharedPreferences(PREF_FILE, MODE_PRIVATE).getString(PREF_REV, null);
+        mTvStatus.setText(R.string.dbx_auto_pushing);
+        mProgress.setVisibility(View.VISIBLE);
+        mListView.setVisibility(View.GONE);
+        mTvEmpty.setVisibility(View.GONE);
+        mTvHint.setVisibility(View.GONE);
+        mLayoutSelectAll.setVisibility(View.GONE);
+        mBtnImport.setEnabled(false);
+        mBtnPush.setEnabled(false);
+        DropboxHelper.uploadToDropbox(this, all, mToken, rev,
+            new AutoPushCallbackImpl(this, all.size()));
+    }
+
+    void onAutoPushSuccess(String path, String newRev, int count) {
+        storeRev(newRev);
+        Toast.makeText(this,
+            count + " " + getString(R.string.dbx_synced),
+            Toast.LENGTH_LONG).show();
+        finish();
+    }
+
+    void onAutoPushConflict() {
+        // Someone else modified Dropbox between our get_metadata and our push.
+        // Fall back to a fresh sync so the compare UI can show what changed.
+        Toast.makeText(this, R.string.dropbox_push_conflict, Toast.LENGTH_LONG).show();
+        startLoad();
+    }
+
+    void onAutoPushError(String msg) {
+        mProgress.setVisibility(View.GONE);
+        Toast.makeText(this,
+            getString(R.string.dropbox_upload_failed) + ": " + msg,
+            Toast.LENGTH_LONG).show();
+        finish();
     }
 
     void onSyncError(String msg) {
@@ -580,6 +617,18 @@ public class DropboxSyncActivity extends Activity {
         public void onConflict() { mOuter.onPushConflict(); }
         public void onError(String msg) { mOuter.onPushError(msg); }
         public void onAuthFailed() { mOuter.onPushAuthFailed(); }
+    }
+
+    static class AutoPushCallbackImpl implements DropboxHelper.Callback {
+        private final DropboxSyncActivity mOuter;
+        private final int mCount;
+        AutoPushCallbackImpl(DropboxSyncActivity outer, int count) {
+            mOuter = outer; mCount = count;
+        }
+        public void onSuccess(String path, String rev) { mOuter.onAutoPushSuccess(path, rev, mCount); }
+        public void onConflict() { mOuter.onAutoPushConflict(); }
+        public void onError(String msg) { mOuter.onAutoPushError(msg); }
+        public void onAuthFailed() { mOuter.onAuthFailed(); }
     }
 
     // =========================================================

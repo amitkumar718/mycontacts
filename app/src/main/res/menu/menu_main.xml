@@ -22,11 +22,6 @@
         android:showAsAction="never" />
 
     <item
-        android:id="@+id/action_dropbox"
-        android:title="@string/upload_to_dropbox"
-        android:showAsAction="never" />
-
-    <item
         android:id="@+id/action_dropbox_sync"
         android:title="@string/dropbox_sync"
         android:showAsAction="never" />

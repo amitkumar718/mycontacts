@@ -4,13 +4,11 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
-import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,7 +23,6 @@ import android.widget.Toast;
 import com.ldsa.mycontacts.R;
 import com.ldsa.mycontacts.contacts.BackupHelper;
 import com.ldsa.mycontacts.contacts.ContactsHelper;
-import com.ldsa.mycontacts.contacts.DropboxHelper;
 import com.ldsa.mycontacts.contacts.ExportHelper;
 import com.ldsa.mycontacts.contacts.ImportHelper;
 import com.ldsa.mycontacts.db.ArchivedContact;
@@ -45,9 +42,6 @@ public class MainActivity extends Activity {
     private static final int REQ_CONTACTS_PERM = 1;
     private static final int REQ_IMPORT_FILE   = 2;
     private static final String PREF_VIEW_MODE  = "view_mode";
-    private static final String PREF_DROPBOX_FILE  = DropboxHelper.PREF_FILE;
-    private static final String KEY_DROPBOX_TOKEN  = DropboxHelper.KEY_TOKEN;
-    private static final String KEY_DROPBOX_REV    = DropboxHelper.KEY_REV;
     static final String EXTRA_CONTACT_ID = "contact_id";
 
     private EditText mEtSearch;
@@ -126,10 +120,6 @@ public class MainActivity extends Activity {
         }
         if (item.getItemId() == R.id.action_export) {
             startExport();
-            return true;
-        }
-        if (item.getItemId() == R.id.action_dropbox) {
-            startDropboxUpload();
             return true;
         }
         if (item.getItemId() == R.id.action_dropbox_sync) {
@@ -413,58 +403,6 @@ public class MainActivity extends Activity {
         ExportHelper.exportToDrive(this, all, new ExportCallbackImpl(this));
     }
 
-    // --- Dropbox ---
-
-    void startDropboxUpload() {
-        List<ArchivedContact> all = mDb.getAll();
-        if (all.isEmpty()) {
-            Toast.makeText(this, R.string.no_contacts_to_backup, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        SharedPreferences prefs = getSharedPreferences(PREF_DROPBOX_FILE, MODE_PRIVATE);
-        String token = prefs.getString(KEY_DROPBOX_TOKEN, null);
-        if (token == null || token.isEmpty()) {
-            showDropboxTokenDialog();
-        } else {
-            doDropboxUpload(all, token);
-        }
-    }
-
-    void showDropboxTokenDialog() {
-        EditText et = new EditText(this);
-        et.setHint(R.string.dropbox_token_hint);
-        et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setTitle(R.string.dropbox_token_title);
-        b.setMessage(R.string.dropbox_token_message);
-        b.setView(et);
-        b.setPositiveButton(R.string.save, new DropboxTokenSaveListener(this, et));
-        b.setNegativeButton(R.string.cancel, null);
-        b.show();
-    }
-
-    void saveDropboxTokenAndUpload(String token) {
-        getSharedPreferences(PREF_DROPBOX_FILE, MODE_PRIVATE)
-            .edit().putString(KEY_DROPBOX_TOKEN, token).apply();
-        doDropboxUpload(mDb.getAll(), token);
-    }
-
-    void doDropboxUpload(List<ArchivedContact> contacts, String token) {
-        SharedPreferences prefs = getSharedPreferences(PREF_DROPBOX_FILE, MODE_PRIVATE);
-        String rev = prefs.getString(KEY_DROPBOX_REV, null);
-        Toast.makeText(this, R.string.uploading_to_dropbox, Toast.LENGTH_SHORT).show();
-        DropboxHelper.uploadToDropbox(this, contacts, token, rev, new DropboxCallbackImpl(this));
-    }
-
-    void storeDropboxRev(String rev) {
-        getSharedPreferences(PREF_DROPBOX_FILE, MODE_PRIVATE)
-            .edit().putString(KEY_DROPBOX_REV, rev).apply();
-    }
-
-    void clearDropboxToken() {
-        getSharedPreferences(PREF_DROPBOX_FILE, MODE_PRIVATE)
-            .edit().remove(KEY_DROPBOX_TOKEN).remove(KEY_DROPBOX_REV).apply();
-    }
 
     // =========================================================
     // Static listener classes (D8: no anonymous / non-static)
@@ -642,42 +580,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    static class DropboxTokenSaveListener implements DialogInterface.OnClickListener {
-        private final MainActivity mMain;
-        private final EditText mEt;
-        DropboxTokenSaveListener(MainActivity main, EditText et) { mMain = main; mEt = et; }
-        public void onClick(DialogInterface d, int w) {
-            String token = mEt.getText().toString().trim();
-            if (token.isEmpty()) {
-                Toast.makeText(mMain, R.string.dropbox_token_empty, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            mMain.saveDropboxTokenAndUpload(token);
-        }
-    }
-
-    static class DropboxCallbackImpl implements DropboxHelper.Callback {
-        private final MainActivity mMain;
-        DropboxCallbackImpl(MainActivity main) { mMain = main; }
-        public void onSuccess(String path, String newRev) {
-            mMain.storeDropboxRev(newRev);
-            Toast.makeText(mMain,
-                mMain.getString(R.string.dropbox_upload_success) + "\n" + path,
-                Toast.LENGTH_LONG).show();
-        }
-        public void onConflict() {
-            Toast.makeText(mMain, R.string.dropbox_push_conflict, Toast.LENGTH_LONG).show();
-        }
-        public void onError(String message) {
-            Toast.makeText(mMain,
-                mMain.getString(R.string.dropbox_upload_failed) + ": " + message,
-                Toast.LENGTH_LONG).show();
-        }
-        public void onAuthFailed() {
-            mMain.clearDropboxToken();
-            Toast.makeText(mMain, R.string.dropbox_token_invalid, Toast.LENGTH_LONG).show();
-        }
-    }
 
     static class BackupThread extends Thread {
         private final MainActivity mMain;
