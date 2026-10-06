@@ -84,6 +84,39 @@
         android:background="#F5F5F5"
         android:visibility="gone" />
 
+    <!-- Select-all row (shown when list has items) -->
+    <LinearLayout
+        android:id="@+id/layoutSyncSelectAll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FAFAFA"
+        android:paddingLeft="12dp"
+        android:paddingRight="16dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <CheckBox
+            android:id="@+id/cbSyncSelectAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/select_all"
+            android:textSize="12sp"
+            android:textColor="#424242" />
+
+        <TextView
+            android:id="@+id/tvSyncSelectCount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:textSize="12sp"
+            android:textColor="#757575" />
+
+    </LinearLayout>
+
     <!-- Contact list -->
     <ListView
         android:id="@+id/listSync"

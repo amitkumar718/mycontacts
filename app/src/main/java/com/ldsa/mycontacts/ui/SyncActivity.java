@@ -12,6 +12,8 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -38,6 +40,9 @@ public class SyncActivity extends Activity {
     private TextView mTvHint;
     private ProgressBar mProgress;
     private ListView mListView;
+    private LinearLayout mLayoutSelectAll;
+    private CheckBox mCbSelectAll;
+    private TextView mTvSelectCount;
     private Button mBtnAction;
     private SyncAdapter mAdapter;
     private ContactDatabase mDb;
@@ -62,12 +67,16 @@ public class SyncActivity extends Activity {
         mTvHint    = (TextView)    findViewById(R.id.tvSyncHint);
         mProgress  = (ProgressBar) findViewById(R.id.syncProgress);
         mListView  = (ListView)    findViewById(R.id.listSync);
+        mLayoutSelectAll = (LinearLayout) findViewById(R.id.layoutSyncSelectAll);
+        mCbSelectAll     = (CheckBox)     findViewById(R.id.cbSyncSelectAll);
+        mTvSelectCount   = (TextView)     findViewById(R.id.tvSyncSelectCount);
         mBtnAction = (Button)      findViewById(R.id.btnSyncAction);
         Button btnCancel = (Button) findViewById(R.id.btnSyncCancel);
 
         mBtnToggleDuplicates.setOnClickListener(new ToggleModeListener(this, MODE_DUPLICATES));
         mBtnToggleArchiveOnly.setOnClickListener(new ToggleModeListener(this, MODE_ARCHIVE_ONLY));
         mListView.setOnItemClickListener(new ItemClickListener(this));
+        mCbSelectAll.setOnClickListener(new SelectAllClickListener(this));
         mBtnAction.setOnClickListener(new ActionClickListener(this));
         btnCancel.setOnClickListener(new CancelClickListener(this));
 
@@ -127,6 +136,7 @@ public class SyncActivity extends Activity {
             mTvStatus.setText(mode == MODE_DUPLICATES
                 ? R.string.sync_empty_duplicates : R.string.sync_empty_archive_only);
             mTvHint.setVisibility(View.GONE);
+            mLayoutSelectAll.setVisibility(View.GONE);
             mBtnAction.setEnabled(false);
             // keep action button styled correctly even when disabled
             styleActionButton(mode, 0);
@@ -136,10 +146,30 @@ public class SyncActivity extends Activity {
             mTvHint.setVisibility(View.VISIBLE);
             mTvHint.setText(mode == MODE_DUPLICATES
                 ? R.string.sync_hint_duplicates : R.string.sync_hint_archive_only);
+            mLayoutSelectAll.setVisibility(View.VISIBLE);
             mAdapter = new SyncAdapter(this, items);
             mListView.setAdapter(mAdapter);
+            updateSelectAllRow();
             updateActionButton();
         }
+    }
+
+    /** Refresh the select-all checkbox + "N / M" count label for the current tab. */
+    void updateSelectAllRow() {
+        List<SyncMatch> items = mCurrentMode == MODE_DUPLICATES ? mDuplicates : mArchiveOnly;
+        int sel = 0;
+        for (SyncMatch m : items) if (m.selected) sel++;
+        mTvSelectCount.setText(sel + " / " + items.size());
+        mCbSelectAll.setChecked(sel > 0 && sel == items.size());
+    }
+
+    /** Select or deselect every item in the current tab. */
+    void selectAllInCurrentTab(boolean selected) {
+        List<SyncMatch> items = mCurrentMode == MODE_DUPLICATES ? mDuplicates : mArchiveOnly;
+        for (SyncMatch m : items) m.selected = selected;
+        if (mAdapter != null) mAdapter.notifyDataSetChanged();
+        updateSelectAllRow();
+        updateActionButton();
     }
 
     void updateActionButton() {
@@ -175,6 +205,7 @@ public class SyncActivity extends Activity {
     void toggleItem(int pos) {
         if (mAdapter == null) return;
         mAdapter.toggleSelected(pos);
+        updateSelectAllRow();
         updateActionButton();
     }
 
@@ -469,5 +500,14 @@ public class SyncActivity extends Activity {
         private final SyncActivity mOuter;
         CancelClickListener(SyncActivity outer) { mOuter = outer; }
         public void onClick(View v) { mOuter.finish(); }
+    }
+
+    static class SelectAllClickListener implements View.OnClickListener {
+        private final SyncActivity mOuter;
+        SelectAllClickListener(SyncActivity outer) { mOuter = outer; }
+        public void onClick(View v) {
+            boolean newState = ((CheckBox) v).isChecked();
+            mOuter.selectAllInCurrentTab(newState);
+        }
     }
 }

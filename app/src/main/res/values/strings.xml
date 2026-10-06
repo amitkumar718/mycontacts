@@ -98,7 +98,7 @@
     <string name="dbx_empty_upstream">Nothing to import — upstream matches local or is empty</string>
     <string name="dbx_empty_local">All local contacts are already on Dropbox</string>
     <string name="dbx_hint_upstream">Tap to deselect, then Import. The selected contacts will be added to the local archive.</string>
-    <string name="dbx_hint_local">These exist only locally. They will be included when you Push to Dropbox.</string>
+    <string name="dbx_hint_local">These exist only locally. All are selected by default — tap to exclude any from the Push.</string>
     <string name="dbx_import">Import</string>
     <string name="dbx_push">Push</string>
     <string name="dbx_confirm_import">contact(s) will be imported into the local archive. Continue?</string>
@@ -109,4 +109,5 @@
     <string name="dbx_already_in_sync">✓ Already in sync with Dropbox</string>
     <string name="dbx_already_in_sync_hint">Remote hasn\'t changed since your last sync.\n\nTap Push to re-upload the current local state (useful if you\'ve added contacts since last sync).</string>
     <string name="dropbox_push_conflict">Dropbox was modified since your last sync. Re-syncing now…</string>
+    <string name="select_all">Select all</string>
 </resources>

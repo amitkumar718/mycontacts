@@ -14,7 +14,9 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -46,6 +48,9 @@ public class DropboxSyncActivity extends Activity {
     private TextView mTvHint;
     private ProgressBar mProgress;
     private ListView mListView;
+    private LinearLayout mLayoutSelectAll;
+    private CheckBox mCbSelectAll;
+    private TextView mTvSelectCount;
     private Button mBtnImport;
     private Button mBtnPush;
     private DropboxSyncAdapter mAdapter;
@@ -73,6 +78,9 @@ public class DropboxSyncActivity extends Activity {
         mTvHint   = (TextView)    findViewById(R.id.tvDbxHint);
         mProgress = (ProgressBar) findViewById(R.id.dbxProgress);
         mListView = (ListView)    findViewById(R.id.listDbx);
+        mLayoutSelectAll = (LinearLayout) findViewById(R.id.layoutSelectAll);
+        mCbSelectAll     = (CheckBox)     findViewById(R.id.cbSelectAll);
+        mTvSelectCount   = (TextView)     findViewById(R.id.tvSelectCount);
         mBtnImport = (Button) findViewById(R.id.btnDbxImport);
         mBtnPush   = (Button) findViewById(R.id.btnDbxPush);
         Button btnCancel = (Button) findViewById(R.id.btnDbxCancel);
@@ -80,6 +88,7 @@ public class DropboxSyncActivity extends Activity {
         mBtnToggleUpstream.setOnClickListener(new ToggleModeListener(this, MODE_UPSTREAM_ONLY));
         mBtnToggleLocal.setOnClickListener(new ToggleModeListener(this, MODE_LOCAL_ONLY));
         mListView.setOnItemClickListener(new ItemClickListener(this));
+        mCbSelectAll.setOnClickListener(new SelectAllClickListener(this));
         mBtnImport.setOnClickListener(new ImportClickListener(this));
         mBtnPush.setOnClickListener(new PushClickListener(this));
         btnCancel.setOnClickListener(new CancelClickListener(this));
@@ -153,8 +162,6 @@ public class DropboxSyncActivity extends Activity {
     void onSyncEmpty() {
         mProgress.setVisibility(View.GONE);
         mTvStatus.setText(R.string.dbx_empty_folder);
-        mTvEmpty.setVisibility(View.VISIBLE);
-        mTvEmpty.setText(R.string.dbx_empty_folder_hint);
         mLoaded = true;
         // No upstream — all local is "Local Only"
         mUpstreamOnly = new ArrayList<SyncItem>();
@@ -162,12 +169,19 @@ public class DropboxSyncActivity extends Activity {
         for (ArchivedContact c : mDb.getAll()) {
             SyncItem it = new SyncItem();
             it.contact = c;
-            it.selected = false; // local-only is informational
+            it.selected = true; // all selected by default for push
             mLocalOnly.add(it);
         }
         updateToggleLabels();
         mBtnImport.setEnabled(false);
-        mBtnPush.setEnabled(!mLocalOnly.isEmpty());
+        if (mLocalOnly.isEmpty()) {
+            mTvEmpty.setVisibility(View.VISIBLE);
+            mTvEmpty.setText(R.string.dbx_empty_folder_hint);
+            mBtnPush.setEnabled(false);
+        } else {
+            // Jump to Local Only tab since there's no upstream to show
+            switchMode(MODE_LOCAL_ONLY);
+        }
     }
 
     void onSyncError(String msg) {
@@ -230,14 +244,13 @@ public class DropboxSyncActivity extends Activity {
             if (!matchedIn(ac, upstreamNames, upstreamPhones)) {
                 SyncItem it = new SyncItem();
                 it.contact = ac;
-                it.selected = false; // local-only is informational
+                it.selected = true; // all selected by default — tap to exclude from push
                 mLocalOnly.add(it);
             }
         }
 
         mLoaded = true;
         updateToggleLabels();
-        mBtnPush.setEnabled(true);
         switchMode(MODE_UPSTREAM_ONLY);
     }
 
@@ -281,18 +294,44 @@ public class DropboxSyncActivity extends Activity {
             mTvEmpty.setText(mode == MODE_UPSTREAM_ONLY
                 ? R.string.dbx_empty_upstream : R.string.dbx_empty_local);
             mTvHint.setVisibility(View.GONE);
+            mLayoutSelectAll.setVisibility(View.GONE);
+            mAdapter = null;
         } else {
             mTvEmpty.setVisibility(View.GONE);
             mListView.setVisibility(View.VISIBLE);
             mTvHint.setVisibility(View.VISIBLE);
             mTvHint.setText(mode == MODE_UPSTREAM_ONLY
                 ? R.string.dbx_hint_upstream : R.string.dbx_hint_local);
-            mAdapter = new DropboxSyncAdapter(this, items, mode == MODE_UPSTREAM_ONLY);
+            mLayoutSelectAll.setVisibility(View.VISIBLE);
+            // Both tabs are now selectable
+            mAdapter = new DropboxSyncAdapter(this, items, true);
             mListView.setAdapter(mAdapter);
         }
 
         updateStatus();
+        updateSelectAllRow();
         updateImportButton();
+        updatePushButton();
+    }
+
+    /** Refresh the select-all checkbox + "N / M" count label for the current tab. */
+    void updateSelectAllRow() {
+        List<SyncItem> items = mCurrentMode == MODE_UPSTREAM_ONLY ? mUpstreamOnly : mLocalOnly;
+        int sel = 0;
+        for (SyncItem it : items) if (it.selected) sel++;
+        mTvSelectCount.setText(sel + " / " + items.size());
+        // setChecked doesn't trigger OnClickListener, so this is safe
+        mCbSelectAll.setChecked(sel > 0 && sel == items.size());
+    }
+
+    /** Select or deselect every item in the current tab. */
+    void selectAllInCurrentTab(boolean selected) {
+        List<SyncItem> items = mCurrentMode == MODE_UPSTREAM_ONLY ? mUpstreamOnly : mLocalOnly;
+        for (SyncItem it : items) it.selected = selected;
+        if (mAdapter != null) mAdapter.notifyDataSetChanged();
+        updateSelectAllRow();
+        if (mCurrentMode == MODE_UPSTREAM_ONLY) updateImportButton();
+        else updatePushButton();
     }
 
     void updateStatus() {
@@ -315,10 +354,23 @@ public class DropboxSyncActivity extends Activity {
         mBtnImport.setEnabled(n > 0);
     }
 
+    /** Push count = all local contacts minus any Local Only items that have been deselected. */
+    void updatePushButton() {
+        if (!mLoaded) return;
+        int total = mDb.getAll().size();
+        int deselected = 0;
+        for (SyncItem it : mLocalOnly) if (!it.selected) deselected++;
+        int pushCount = total - deselected;
+        mBtnPush.setText(getString(R.string.dbx_push) + " (" + pushCount + ")");
+        mBtnPush.setEnabled(pushCount > 0);
+    }
+
     void toggleItem(int pos) {
-        if (mCurrentMode != MODE_UPSTREAM_ONLY || mAdapter == null) return;
+        if (mAdapter == null) return;
         mAdapter.toggleSelected(pos);
-        updateImportButton();
+        updateSelectAllRow();
+        if (mCurrentMode == MODE_UPSTREAM_ONLY) updateImportButton();
+        else updatePushButton();
     }
 
     void confirmImport() {
@@ -352,25 +404,38 @@ public class DropboxSyncActivity extends Activity {
     }
 
     void confirmPush() {
-        List<ArchivedContact> all = mDb.getAll();
-        if (all.isEmpty()) {
+        List<ArchivedContact> toPush = computePushSet();
+        if (toPush.isEmpty()) {
             Toast.makeText(this, R.string.no_contacts_to_backup, Toast.LENGTH_SHORT).show();
             return;
         }
         AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setMessage(all.size() + " " + getString(R.string.dbx_confirm_push));
+        b.setMessage(toPush.size() + " " + getString(R.string.dbx_confirm_push));
         b.setPositiveButton(R.string.dbx_push, new PushConfirmListener(this));
         b.setNegativeButton(R.string.cancel, null);
         b.show();
     }
 
+    /** Push set = all local, excluding any Local Only items the user deselected. */
+    private List<ArchivedContact> computePushSet() {
+        java.util.HashSet<Long> excludeIds = new java.util.HashSet<Long>();
+        for (SyncItem it : mLocalOnly) {
+            if (!it.selected) excludeIds.add(Long.valueOf(it.contact.id));
+        }
+        List<ArchivedContact> out = new ArrayList<ArchivedContact>();
+        for (ArchivedContact c : mDb.getAll()) {
+            if (!excludeIds.contains(Long.valueOf(c.id))) out.add(c);
+        }
+        return out;
+    }
+
     void doPush() {
-        List<ArchivedContact> all = mDb.getAll();
+        List<ArchivedContact> toPush = computePushSet();
         String rev = getSharedPreferences(PREF_FILE, MODE_PRIVATE).getString(PREF_REV, null);
         Toast.makeText(this, R.string.uploading_to_dropbox, Toast.LENGTH_SHORT).show();
         mBtnPush.setEnabled(false);
         mBtnImport.setEnabled(false);
-        DropboxHelper.uploadToDropbox(this, all, mToken, rev, new UploadCallbackImpl(this));
+        DropboxHelper.uploadToDropbox(this, toPush, mToken, rev, new UploadCallbackImpl(this));
     }
 
     void onPushSuccess(String path, String newRev) {
@@ -566,6 +631,15 @@ public class DropboxSyncActivity extends Activity {
         private final DropboxSyncActivity mOuter;
         CancelClickListener(DropboxSyncActivity outer) { mOuter = outer; }
         public void onClick(View v) { mOuter.finish(); }
+    }
+
+    static class SelectAllClickListener implements View.OnClickListener {
+        private final DropboxSyncActivity mOuter;
+        SelectAllClickListener(DropboxSyncActivity outer) { mOuter = outer; }
+        public void onClick(View v) {
+            boolean newState = ((CheckBox) v).isChecked();
+            mOuter.selectAllInCurrentTab(newState);
+        }
     }
 
     static class TokenSaveListener implements DialogInterface.OnClickListener {
