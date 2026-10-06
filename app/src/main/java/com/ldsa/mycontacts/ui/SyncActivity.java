@@ -187,8 +187,8 @@ public class SyncActivity extends Activity {
     private void styleActionButton(int mode, int count) {
         if (mode == MODE_DUPLICATES) {
             String label = count > 0
-                ? getString(R.string.btn_delete) + " (" + count + ")"
-                : getString(R.string.btn_delete);
+                ? getString(R.string.btn_delete_from_device) + " (" + count + ")"
+                : getString(R.string.btn_delete_from_device);
             mBtnAction.setText(label);
             mBtnAction.setBackgroundResource(R.drawable.bg_button_danger);
             mBtnAction.setTextColor(0xFFFFFFFF);
@@ -215,8 +215,8 @@ public class SyncActivity extends Activity {
         if (count == 0) return;
         AlertDialog.Builder b = new AlertDialog.Builder(this);
         if (mCurrentMode == MODE_DUPLICATES) {
-            b.setMessage(count + " " + getString(R.string.sync_confirm_delete));
-            b.setPositiveButton(R.string.btn_delete, new DeleteConfirmListener(this));
+            b.setMessage(count + " " + getString(R.string.sync_confirm_delete_from_device));
+            b.setPositiveButton(R.string.btn_delete_from_device, new DeleteConfirmListener(this));
         } else {
             b.setMessage(count + " " + getString(R.string.sync_confirm_restore));
             b.setPositiveButton(R.string.btn_restore, new RestoreConfirmListener(this));
@@ -228,15 +228,21 @@ public class SyncActivity extends Activity {
     void doDelete() {
         if (mAdapter == null) return;
         List<SyncMatch> selected = mAdapter.getSelectedMatches();
-        for (int i = 0; i < selected.size(); i++) {
-            mDb.delete(selected.get(i).archived.id);
-            mDuplicates.remove(selected.get(i));
+        if (selected.isEmpty()) return;
+        Toast.makeText(this, R.string.deleting_from_device, Toast.LENGTH_SHORT).show();
+        mBtnAction.setEnabled(false);
+        new DeleteFromDeviceThread(this, selected, new Handler(Looper.getMainLooper())).start();
+    }
+
+    void onDeleteFromDeviceDone(List<SyncMatch> succeeded, int failed) {
+        for (int i = 0; i < succeeded.size(); i++) {
+            mDuplicates.remove(succeeded.get(i));
         }
         mBtnToggleDuplicates.setText(
             getString(R.string.sync_tab_duplicates) + " (" + mDuplicates.size() + ")");
-        Toast.makeText(this,
-            selected.size() + " " + getString(R.string.contacts_deleted),
-            Toast.LENGTH_SHORT).show();
+        String msg = succeeded.size() + " " + getString(R.string.device_contacts_deleted);
+        if (failed > 0) msg += ", " + failed + " failed";
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
         switchMode(MODE_DUPLICATES);
     }
 
@@ -267,6 +273,7 @@ public class SyncActivity extends Activity {
 
     static class SyncMatch {
         ArchivedContact archived;
+        long deviceContactId;  // populated for Duplicates; 0 for Archive Only
         boolean selected = true;
     }
 
@@ -349,15 +356,16 @@ public class SyncActivity extends Activity {
             List<ContactsHelper.DeviceContact> device =
                 ContactsHelper.loadDeviceContacts(mOuter);
 
-            HashMap<String, Boolean> deviceNames  = new HashMap<String, Boolean>();
-            HashMap<String, Boolean> devicePhones = new HashMap<String, Boolean>();
+            // Maps carry the device contact ID so Delete can target the device copy
+            HashMap<String, Long> deviceNames  = new HashMap<String, Long>();
+            HashMap<String, Long> devicePhones = new HashMap<String, Long>();
 
             for (int i = 0; i < device.size(); i++) {
                 ContactsHelper.DeviceContact dc = device.get(i);
                 String name = normalizeName(dc.displayName);
-                if (!name.isEmpty()) deviceNames.put(name, Boolean.TRUE);
+                if (!name.isEmpty()) deviceNames.put(name, Long.valueOf(dc.contactId));
                 String phone = normalizePhone(dc.primaryPhone);
-                if (!phone.isEmpty()) devicePhones.put(phone, Boolean.TRUE);
+                if (!phone.isEmpty()) devicePhones.put(phone, Long.valueOf(dc.contactId));
             }
 
             List<SyncMatch> duplicates  = new ArrayList<SyncMatch>();
@@ -367,7 +375,9 @@ public class SyncActivity extends Activity {
                 ArchivedContact ac = archived.get(i);
                 SyncMatch m = new SyncMatch();
                 m.archived = ac;
-                if (isMatch(ac, deviceNames, devicePhones)) {
+                long matchedDeviceId = findMatchDeviceId(ac, deviceNames, devicePhones);
+                if (matchedDeviceId > 0) {
+                    m.deviceContactId = matchedDeviceId;
                     duplicates.add(m);
                 } else {
                     archiveOnly.add(m);
@@ -377,17 +387,24 @@ public class SyncActivity extends Activity {
             mHandler.post(new LoadResultRunnable(mOuter, duplicates, archiveOnly));
         }
 
-        private boolean isMatch(ArchivedContact ac,
-                HashMap<String, Boolean> names,
-                HashMap<String, Boolean> phones) {
+        /** Returns the device contact ID that matches this archived contact, or 0 if none. */
+        private long findMatchDeviceId(ArchivedContact ac,
+                HashMap<String, Long> names,
+                HashMap<String, Long> phones) {
             String name = normalizeName(ac.displayName);
-            if (!name.isEmpty() && names.containsKey(name)) return true;
+            if (!name.isEmpty()) {
+                Long id = names.get(name);
+                if (id != null) return id.longValue();
+            }
             List<ArchivedContact.Phone> acPhones = ac.getPhones();
             for (int i = 0; i < acPhones.size(); i++) {
                 String p = normalizePhone(acPhones.get(i).number);
-                if (!p.isEmpty() && phones.containsKey(p)) return true;
+                if (!p.isEmpty()) {
+                    Long id = phones.get(p);
+                    if (id != null) return id.longValue();
+                }
             }
-            return false;
+            return 0;
         }
 
         private static String normalizeName(String s) {
@@ -455,6 +472,42 @@ public class SyncActivity extends Activity {
             mOuter = outer; mSucceeded = succeeded; mFailed = failed;
         }
         public void run() { mOuter.onRestoreDone(mSucceeded, mFailed); }
+    }
+
+    static class DeleteFromDeviceThread extends Thread {
+        private final SyncActivity mOuter;
+        private final List<SyncMatch> mItems;
+        private final Handler mHandler;
+
+        DeleteFromDeviceThread(SyncActivity outer, List<SyncMatch> items, Handler handler) {
+            mOuter = outer; mItems = items; mHandler = handler;
+        }
+
+        public void run() {
+            List<SyncMatch> succeeded = new ArrayList<SyncMatch>();
+            int failed = 0;
+            for (int i = 0; i < mItems.size(); i++) {
+                SyncMatch m = mItems.get(i);
+                if (m.deviceContactId <= 0) { failed++; continue; }
+                try {
+                    ContactsHelper.deleteDeviceContact(mOuter, m.deviceContactId);
+                    succeeded.add(m);
+                } catch (Exception e) {
+                    failed++;
+                }
+            }
+            mHandler.post(new DeleteFromDeviceResultRunnable(mOuter, succeeded, failed));
+        }
+    }
+
+    static class DeleteFromDeviceResultRunnable implements Runnable {
+        private final SyncActivity mOuter;
+        private final List<SyncMatch> mSucceeded;
+        private final int mFailed;
+        DeleteFromDeviceResultRunnable(SyncActivity outer, List<SyncMatch> succeeded, int failed) {
+            mOuter = outer; mSucceeded = succeeded; mFailed = failed;
+        }
+        public void run() { mOuter.onDeleteFromDeviceDone(mSucceeded, mFailed); }
     }
 
     // =========================================================
