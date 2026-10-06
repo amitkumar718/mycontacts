@@ -131,6 +131,111 @@
                 android:paddingBottom="12dp"
                 android:visibility="gone" />
 
+            <!-- Full Name (first/last if set) -->
+            <TextView
+                android:id="@+id/labelFullName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/full_name"
+                android:textColor="#1565C0"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tvFullName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textColor="#212121"
+                android:paddingTop="2dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone" />
+
+            <!-- Nickname -->
+            <TextView
+                android:id="@+id/labelNickname"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/nickname"
+                android:textColor="#1565C0"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tvNickname"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textColor="#212121"
+                android:paddingTop="2dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone" />
+
+            <!-- Addresses -->
+            <TextView
+                android:id="@+id/labelAddresses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/addresses"
+                android:textColor="#1565C0"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tvAddresses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textColor="#212121"
+                android:paddingTop="2dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone" />
+
+            <!-- Websites -->
+            <TextView
+                android:id="@+id/labelWebsites"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/websites"
+                android:textColor="#1565C0"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tvWebsites"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textColor="#212121"
+                android:paddingTop="2dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone" />
+
+            <!-- Events (birthdays etc.) -->
+            <TextView
+                android:id="@+id/labelEvents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/events"
+                android:textColor="#1565C0"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tvEvents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textColor="#212121"
+                android:paddingTop="2dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone" />
+
             <!-- Labels -->
             <TextView
                 android:id="@+id/labelLabels"

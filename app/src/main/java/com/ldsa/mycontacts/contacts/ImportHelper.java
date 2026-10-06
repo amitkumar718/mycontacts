@@ -105,6 +105,82 @@ public class ImportHelper {
             try { ts = sdf.parse(dateStr).getTime(); } catch (Exception ignored) {}
         }
         c.archivedAt = ts;
+
+        // v3 columns (optional — older CSVs won't have them)
+        String firstName = cellAt(row, 8);  if (!firstName.isEmpty())  c.firstName  = firstName;
+        String lastName  = cellAt(row, 9);  if (!lastName.isEmpty())   c.lastName   = lastName;
+        String prefix    = cellAt(row, 10); if (!prefix.isEmpty())     c.namePrefix = prefix;
+        String suffix    = cellAt(row, 11); if (!suffix.isEmpty())     c.nameSuffix = suffix;
+        String nickname  = cellAt(row, 12); if (!nickname.isEmpty())   c.nickname   = nickname;
+
+        String websitesStr = cellAt(row, 13);
+        if (!websitesStr.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            for (String url : websitesStr.split(";")) {
+                url = url.trim();
+                if (url.isEmpty()) continue;
+                try {
+                    JSONObject o = new JSONObject();
+                    o.put("url", url);
+                    o.put("type", 7); // homepage
+                    arr.put(o);
+                } catch (Exception e) { /* skip */ }
+            }
+            if (arr.length() > 0) c.websitesJson = arr.toString();
+        }
+
+        String addressesStr = cellAt(row, 14);
+        if (!addressesStr.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            for (String a : addressesStr.split(";")) {
+                a = a.trim();
+                if (a.isEmpty()) continue;
+                String[] parts = a.split("\\|", -1);
+                try {
+                    JSONObject o = new JSONObject();
+                    o.put("street",   parts.length > 0 ? parts[0].trim() : "");
+                    o.put("city",     parts.length > 1 ? parts[1].trim() : "");
+                    o.put("region",   parts.length > 2 ? parts[2].trim() : "");
+                    o.put("postcode", parts.length > 3 ? parts[3].trim() : "");
+                    o.put("country",  parts.length > 4 ? parts[4].trim() : "");
+                    o.put("type", 1); // home
+                    arr.put(o);
+                } catch (Exception e) { /* skip */ }
+            }
+            if (arr.length() > 0) c.addressesJson = arr.toString();
+        }
+
+        String eventsStr = cellAt(row, 15);
+        if (!eventsStr.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            for (String e : eventsStr.split(";")) {
+                e = e.trim();
+                if (e.isEmpty()) continue;
+                int colon = e.indexOf(':');
+                if (colon < 0) continue;
+                String typeStr = e.substring(0, colon).trim();
+                String date    = e.substring(colon + 1).trim();
+                try {
+                    JSONObject o = new JSONObject();
+                    o.put("date", date);
+                    o.put("label", "");
+                    if (typeStr.startsWith("custom")) {
+                        o.put("type", 0);
+                        int c2 = typeStr.indexOf(':');
+                        if (c2 >= 0) o.put("label", typeStr.substring(c2 + 1).trim());
+                    } else if (typeStr.equalsIgnoreCase("anniversary")) {
+                        o.put("type", 1);
+                    } else if (typeStr.equalsIgnoreCase("other")) {
+                        o.put("type", 2);
+                    } else {
+                        o.put("type", 3); // birthday (default)
+                    }
+                    arr.put(o);
+                } catch (Exception ex) { /* skip */ }
+            }
+            if (arr.length() > 0) c.eventsJson = arr.toString();
+        }
+
         return c;
     }
 

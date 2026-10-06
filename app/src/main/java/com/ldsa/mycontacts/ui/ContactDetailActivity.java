@@ -94,6 +94,43 @@ public class ContactDetailActivity extends Activity {
             showField(R.id.labelNotes, R.id.tvNotes, mContact.notes);
         }
 
+        // Full name — show only if first/last/prefix/suffix provide more than displayName already does
+        String full = buildFullName();
+        if (!full.isEmpty() && !full.equalsIgnoreCase(mContact.displayName)) {
+            showField(R.id.labelFullName, R.id.tvFullName, full);
+        }
+
+        if (mContact.nickname != null && !mContact.nickname.isEmpty()) {
+            showField(R.id.labelNickname, R.id.tvNickname, mContact.nickname);
+        }
+
+        List<ArchivedContact.Address> addrs = mContact.getAddresses();
+        if (!addrs.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < addrs.size(); i++) {
+                if (i > 0) sb.append("\n\n");
+                sb.append(formatAddress(addrs.get(i)));
+            }
+            showField(R.id.labelAddresses, R.id.tvAddresses, sb.toString());
+        }
+
+        List<ArchivedContact.Website> webs = mContact.getWebsites();
+        if (!webs.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (ArchivedContact.Website w : webs) sb.append(w.url).append("\n");
+            showField(R.id.labelWebsites, R.id.tvWebsites, sb.toString().trim());
+        }
+
+        List<ArchivedContact.Event> events = mContact.getEvents();
+        if (!events.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < events.size(); i++) {
+                if (i > 0) sb.append("\n");
+                sb.append(formatEvent(events.get(i)));
+            }
+            showField(R.id.labelEvents, R.id.tvEvents, sb.toString());
+        }
+
         refreshLabelsView();
 
         String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
@@ -115,6 +152,39 @@ public class ContactDetailActivity extends Activity {
             }
             showField(R.id.labelLabels, R.id.tvLabels, sb.toString());
         }
+    }
+
+    private String buildFullName() {
+        StringBuilder sb = new StringBuilder();
+        if (mContact.namePrefix != null && !mContact.namePrefix.isEmpty()) sb.append(mContact.namePrefix).append(" ");
+        if (mContact.firstName  != null && !mContact.firstName.isEmpty())  sb.append(mContact.firstName).append(" ");
+        if (mContact.lastName   != null && !mContact.lastName.isEmpty())   sb.append(mContact.lastName).append(" ");
+        if (mContact.nameSuffix != null && !mContact.nameSuffix.isEmpty()) sb.append(mContact.nameSuffix);
+        return sb.toString().trim();
+    }
+
+    private String formatAddress(ArchivedContact.Address a) {
+        StringBuilder sb = new StringBuilder();
+        if (a.street   != null && !a.street.isEmpty())   sb.append(a.street).append("\n");
+        StringBuilder line2 = new StringBuilder();
+        if (a.city     != null && !a.city.isEmpty())     line2.append(a.city);
+        if (a.region   != null && !a.region.isEmpty())   { if (line2.length() > 0) line2.append(", "); line2.append(a.region); }
+        if (a.postcode != null && !a.postcode.isEmpty()) { if (line2.length() > 0) line2.append(" ");  line2.append(a.postcode); }
+        if (line2.length() > 0) sb.append(line2.toString()).append("\n");
+        if (a.country  != null && !a.country.isEmpty())  sb.append(a.country);
+        return sb.toString().trim();
+    }
+
+    private String formatEvent(ArchivedContact.Event ev) {
+        String label;
+        switch (ev.type) {
+            case 3: label = "Birthday"; break;
+            case 1: label = "Anniversary"; break;
+            case 2: label = "Other"; break;
+            case 0: label = (ev.label != null && !ev.label.isEmpty()) ? ev.label : "Custom"; break;
+            default: label = "Event";
+        }
+        return label + ": " + ev.date;
     }
 
     private void showField(int labelId, int valueId, String text) {

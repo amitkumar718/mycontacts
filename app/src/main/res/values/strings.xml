@@ -26,6 +26,11 @@
     <string name="org">Organization</string>
     <string name="notes">Notes</string>
     <string name="archived_on">Archived on</string>
+    <string name="full_name">Full name</string>
+    <string name="nickname">Nickname</string>
+    <string name="addresses">Addresses</string>
+    <string name="websites">Websites</string>
+    <string name="events">Events</string>
     <string name="labels">Labels</string>
     <string name="title_labels">Labels</string>
     <string name="edit_labels">Edit Labels</string>

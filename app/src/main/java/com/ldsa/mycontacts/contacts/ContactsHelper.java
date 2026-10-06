@@ -8,10 +8,14 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
+import android.provider.ContactsContract.CommonDataKinds.Event;
+import android.provider.ContactsContract.CommonDataKinds.Nickname;
 import android.provider.ContactsContract.CommonDataKinds.Note;
 import android.provider.ContactsContract.CommonDataKinds.Organization;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
+import android.provider.ContactsContract.CommonDataKinds.StructuredPostal;
+import android.provider.ContactsContract.CommonDataKinds.Website;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.RawContacts;
 
@@ -95,6 +99,32 @@ public class ContactsHelper {
         }
         if (ac.displayName == null) ac.displayName = "";
 
+        // Structured name — first/last/prefix/suffix
+        Cursor nameCur = cr.query(Data.CONTENT_URI,
+            new String[]{StructuredName.GIVEN_NAME, StructuredName.FAMILY_NAME,
+                         StructuredName.PREFIX, StructuredName.SUFFIX},
+            Data.CONTACT_ID + "=? AND " + Data.MIMETYPE + "=?",
+            new String[]{String.valueOf(contactId), StructuredName.CONTENT_ITEM_TYPE}, null);
+        if (nameCur != null) {
+            try {
+                if (nameCur.moveToFirst()) {
+                    ac.firstName  = nameCur.getString(0);
+                    ac.lastName   = nameCur.getString(1);
+                    ac.namePrefix = nameCur.getString(2);
+                    ac.nameSuffix = nameCur.getString(3);
+                }
+            } finally { nameCur.close(); }
+        }
+
+        // Nickname
+        Cursor nickCur = cr.query(Data.CONTENT_URI, new String[]{Nickname.NAME},
+            Data.CONTACT_ID + "=? AND " + Data.MIMETYPE + "=?",
+            new String[]{String.valueOf(contactId), Nickname.CONTENT_ITEM_TYPE}, null);
+        if (nickCur != null) {
+            try { if (nickCur.moveToFirst()) ac.nickname = nickCur.getString(0); }
+            finally { nickCur.close(); }
+        }
+
         // Phones
         JSONArray phones = new JSONArray();
         Cursor pc = cr.query(Phone.CONTENT_URI, new String[]{Phone.NUMBER, Phone.TYPE},
@@ -152,6 +182,72 @@ public class ContactsHelper {
         if (nc != null) {
             try { if (nc.moveToFirst()) ac.notes = nc.getString(0); } finally { nc.close(); }
         }
+
+        // Websites
+        JSONArray websites = new JSONArray();
+        Cursor wc = cr.query(Data.CONTENT_URI, new String[]{Website.URL, Website.TYPE},
+            Data.CONTACT_ID + "=? AND " + Data.MIMETYPE + "=?",
+            new String[]{String.valueOf(contactId), Website.CONTENT_ITEM_TYPE}, null);
+        if (wc != null) {
+            try {
+                while (wc.moveToNext()) {
+                    try {
+                        JSONObject o = new JSONObject();
+                        o.put("url",  wc.getString(0));
+                        o.put("type", wc.getInt(1));
+                        websites.put(o);
+                    } catch (Exception e) { /* skip */ }
+                }
+            } finally { wc.close(); }
+        }
+        ac.websitesJson = websites.toString();
+
+        // Postal addresses
+        JSONArray addresses = new JSONArray();
+        Cursor addrCur = cr.query(Data.CONTENT_URI,
+            new String[]{StructuredPostal.STREET, StructuredPostal.CITY,
+                         StructuredPostal.REGION, StructuredPostal.POSTCODE,
+                         StructuredPostal.COUNTRY, StructuredPostal.TYPE},
+            Data.CONTACT_ID + "=? AND " + Data.MIMETYPE + "=?",
+            new String[]{String.valueOf(contactId), StructuredPostal.CONTENT_ITEM_TYPE}, null);
+        if (addrCur != null) {
+            try {
+                while (addrCur.moveToNext()) {
+                    try {
+                        JSONObject o = new JSONObject();
+                        o.put("street",   addrCur.getString(0) != null ? addrCur.getString(0) : "");
+                        o.put("city",     addrCur.getString(1) != null ? addrCur.getString(1) : "");
+                        o.put("region",   addrCur.getString(2) != null ? addrCur.getString(2) : "");
+                        o.put("postcode", addrCur.getString(3) != null ? addrCur.getString(3) : "");
+                        o.put("country",  addrCur.getString(4) != null ? addrCur.getString(4) : "");
+                        o.put("type",     addrCur.getInt(5));
+                        addresses.put(o);
+                    } catch (Exception e) { /* skip */ }
+                }
+            } finally { addrCur.close(); }
+        }
+        ac.addressesJson = addresses.toString();
+
+        // Events — birthdays, anniversaries, other
+        JSONArray events = new JSONArray();
+        Cursor evCur = cr.query(Data.CONTENT_URI,
+            new String[]{Event.START_DATE, Event.TYPE, Event.LABEL},
+            Data.CONTACT_ID + "=? AND " + Data.MIMETYPE + "=?",
+            new String[]{String.valueOf(contactId), Event.CONTENT_ITEM_TYPE}, null);
+        if (evCur != null) {
+            try {
+                while (evCur.moveToNext()) {
+                    try {
+                        JSONObject o = new JSONObject();
+                        o.put("date",  evCur.getString(0) != null ? evCur.getString(0) : "");
+                        o.put("type",  evCur.getInt(1));
+                        o.put("label", evCur.getString(2) != null ? evCur.getString(2) : "");
+                        events.put(o);
+                    } catch (Exception e) { /* skip */ }
+                }
+            } finally { evCur.close(); }
+        }
+        ac.eventsJson = events.toString();
 
         // Group memberships → labels
         JSONArray labels = new JSONArray();
@@ -217,11 +313,25 @@ public class ContactsHelper {
             .withValue(RawContacts.ACCOUNT_NAME, accountName)
             .build());
 
-        ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
+        // Structured name — use first/last/prefix/suffix if we have them, else fall back to DISPLAY_NAME
+        ContentProviderOperation.Builder nameOp = ContentProviderOperation.newInsert(Data.CONTENT_URI)
             .withValueBackReference(Data.RAW_CONTACT_ID, 0)
             .withValue(Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
-            .withValue(StructuredName.DISPLAY_NAME, ac.displayName)
-            .build());
+            .withValue(StructuredName.DISPLAY_NAME, ac.displayName);
+        if (ac.firstName  != null && !ac.firstName.isEmpty())  nameOp.withValue(StructuredName.GIVEN_NAME,  ac.firstName);
+        if (ac.lastName   != null && !ac.lastName.isEmpty())   nameOp.withValue(StructuredName.FAMILY_NAME, ac.lastName);
+        if (ac.namePrefix != null && !ac.namePrefix.isEmpty()) nameOp.withValue(StructuredName.PREFIX,      ac.namePrefix);
+        if (ac.nameSuffix != null && !ac.nameSuffix.isEmpty()) nameOp.withValue(StructuredName.SUFFIX,      ac.nameSuffix);
+        ops.add(nameOp.build());
+
+        // Nickname
+        if (ac.nickname != null && !ac.nickname.isEmpty()) {
+            ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
+                .withValueBackReference(Data.RAW_CONTACT_ID, 0)
+                .withValue(Data.MIMETYPE, Nickname.CONTENT_ITEM_TYPE)
+                .withValue(Nickname.NAME, ac.nickname)
+                .build());
+        }
 
         for (ArchivedContact.Phone p : ac.getPhones()) {
             ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
@@ -256,6 +366,40 @@ public class ContactsHelper {
                 .withValue(Data.MIMETYPE, Note.CONTENT_ITEM_TYPE)
                 .withValue(Note.NOTE, ac.notes)
                 .build());
+        }
+
+        for (ArchivedContact.Website w : ac.getWebsites()) {
+            if (w.url == null || w.url.isEmpty()) continue;
+            ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
+                .withValueBackReference(Data.RAW_CONTACT_ID, 0)
+                .withValue(Data.MIMETYPE, Website.CONTENT_ITEM_TYPE)
+                .withValue(Website.URL, w.url)
+                .withValue(Website.TYPE, w.type)
+                .build());
+        }
+
+        for (ArchivedContact.Address a : ac.getAddresses()) {
+            ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
+                .withValueBackReference(Data.RAW_CONTACT_ID, 0)
+                .withValue(Data.MIMETYPE, StructuredPostal.CONTENT_ITEM_TYPE)
+                .withValue(StructuredPostal.STREET,   a.street)
+                .withValue(StructuredPostal.CITY,     a.city)
+                .withValue(StructuredPostal.REGION,   a.region)
+                .withValue(StructuredPostal.POSTCODE, a.postcode)
+                .withValue(StructuredPostal.COUNTRY,  a.country)
+                .withValue(StructuredPostal.TYPE,     a.type)
+                .build());
+        }
+
+        for (ArchivedContact.Event ev : ac.getEvents()) {
+            if (ev.date == null || ev.date.isEmpty()) continue;
+            ContentProviderOperation.Builder evOp = ContentProviderOperation.newInsert(Data.CONTENT_URI)
+                .withValueBackReference(Data.RAW_CONTACT_ID, 0)
+                .withValue(Data.MIMETYPE, Event.CONTENT_ITEM_TYPE)
+                .withValue(Event.START_DATE, ev.date)
+                .withValue(Event.TYPE, ev.type);
+            if (ev.label != null && !ev.label.isEmpty()) evOp.withValue(Event.LABEL, ev.label);
+            ops.add(evOp.build());
         }
 
         cr.applyBatch(ContactsContract.AUTHORITY, ops);

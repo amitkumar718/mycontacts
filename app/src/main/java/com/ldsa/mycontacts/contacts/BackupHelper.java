@@ -18,7 +18,8 @@ public class BackupHelper {
 
     public static String buildCsvContent(List<ArchivedContact> contacts) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Name,Phones,Emails,Organization,Job Title,Notes,Labels,Archived On\n");
+        sb.append("Name,Phones,Emails,Organization,Job Title,Notes,Labels,Archived On,"
+                + "First Name,Last Name,Name Prefix,Name Suffix,Nickname,Websites,Addresses,Events\n");
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
         for (ArchivedContact c : contacts) {
             StringBuilder phones = new StringBuilder();
@@ -36,6 +37,29 @@ public class BackupHelper {
                 if (labels.length() > 0) labels.append("; ");
                 labels.append(l);
             }
+            // Websites: urls separated by "; "
+            StringBuilder websites = new StringBuilder();
+            for (ArchivedContact.Website w : c.getWebsites()) {
+                if (websites.length() > 0) websites.append("; ");
+                websites.append(w.url);
+            }
+            // Addresses: each address as "street|city|region|postcode|country", separated by "; "
+            StringBuilder addresses = new StringBuilder();
+            for (ArchivedContact.Address a : c.getAddresses()) {
+                if (addresses.length() > 0) addresses.append("; ");
+                addresses.append(scrub(a.street)).append("|")
+                         .append(scrub(a.city)).append("|")
+                         .append(scrub(a.region)).append("|")
+                         .append(scrub(a.postcode)).append("|")
+                         .append(scrub(a.country));
+            }
+            // Events: each as "type:date" (type in {birthday,anniversary,other,custom:<label>}), separated by "; "
+            StringBuilder events = new StringBuilder();
+            for (ArchivedContact.Event ev : c.getEvents()) {
+                if (events.length() > 0) events.append("; ");
+                events.append(eventTypeName(ev)).append(":").append(scrub(ev.date));
+            }
+
             sb.append(csvCell(c.displayName)).append(",");
             sb.append(csvCell(phones.toString())).append(",");
             sb.append(csvCell(emails.toString())).append(",");
@@ -43,9 +67,34 @@ public class BackupHelper {
             sb.append(csvCell(c.jobTitle)).append(",");
             sb.append(csvCell(c.notes)).append(",");
             sb.append(csvCell(labels.toString())).append(",");
-            sb.append(csvCell(sdf.format(new Date(c.archivedAt)))).append("\n");
+            sb.append(csvCell(sdf.format(new Date(c.archivedAt)))).append(",");
+            sb.append(csvCell(c.firstName)).append(",");
+            sb.append(csvCell(c.lastName)).append(",");
+            sb.append(csvCell(c.namePrefix)).append(",");
+            sb.append(csvCell(c.nameSuffix)).append(",");
+            sb.append(csvCell(c.nickname)).append(",");
+            sb.append(csvCell(websites.toString())).append(",");
+            sb.append(csvCell(addresses.toString())).append(",");
+            sb.append(csvCell(events.toString())).append("\n");
         }
         return sb.toString();
+    }
+
+    private static String scrub(String s) {
+        if (s == null) return "";
+        // Strip our internal separators from field values so they can't break parsing
+        return s.replace("|", " ").replace(";", ",");
+    }
+
+    private static String eventTypeName(ArchivedContact.Event ev) {
+        // ContactsContract.CommonDataKinds.Event: 0=custom, 1=anniversary, 2=other, 3=birthday
+        switch (ev.type) {
+            case 3: return "birthday";
+            case 1: return "anniversary";
+            case 2: return "other";
+            case 0: return "custom:" + (ev.label != null ? scrub(ev.label) : "");
+            default: return "other";
+        }
     }
 
     public static String writeCsv(Context ctx, String content) throws IOException {
